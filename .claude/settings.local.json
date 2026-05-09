@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat src/main.tsx)",
+      "Bash(cat src/main.jsx)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx vite *)"
+    ]
+  }
+}
