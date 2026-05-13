@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, CalendarDays, BookOpen, FileText,
+  LayoutDashboard, CalendarDays, Timer, BookOpen, FileText,
   FolderOpen, ClipboardList, Newspaper, BarChart2,
   Sparkles, Settings, GraduationCap
 } from 'lucide-react'
@@ -9,6 +9,7 @@ import { cn } from '../../lib/utils'
 const navItems = [
   { to: '/',               icon: LayoutDashboard, label: 'Dashboard'      },
   { to: '/plan',           icon: CalendarDays,    label: 'Planner'        },
+  { to: '/pomodoro',       icon: Timer,           label: 'Pomodoro'       },
   { to: '/syllabus',       icon: BookOpen,        label: 'Syllabus'       },
   { to: '/notes',          icon: FileText,        label: 'Notes'          },
   { to: '/resources',      icon: FolderOpen,      label: 'Resources'      },

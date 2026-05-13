@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
 import { GraduationCap } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -25,6 +26,7 @@ type SignupData = z.infer<typeof signupSchema>
 
 function LoginForm() {
   const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
   const { register, handleSubmit, formState: { errors } } = useForm<LoginData>({
     resolver: zodResolver(loginSchema)
   })
@@ -81,7 +83,16 @@ function LoginForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="login-password" className="text-sm font-medium text-foreground">Password</label>
+        <div className="flex items-center justify-between">
+          <label htmlFor="login-password" className="text-sm font-medium text-foreground">Password</label>
+          <button
+            type="button"
+            onClick={() => navigate('/reset-password')}
+            className="text-xs text-primary hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
         <input
           id="login-password"
           type="password"

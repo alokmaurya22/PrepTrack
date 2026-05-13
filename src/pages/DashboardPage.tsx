@@ -1,5 +1,3 @@
-import { LayoutDashboard } from 'lucide-react'
-
 export function DashboardPage() {
   return (
     <div className="space-y-6">
