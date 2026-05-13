@@ -1,24 +1,38 @@
-import { Moon, Sun, Monitor, Bell, Search } from 'lucide-react'
+import { Moon, Sun, Monitor, Search, Menu } from 'lucide-react'
 import { useThemeStore } from '../../store/themeStore'
 import { useAuthStore } from '../../store/authStore'
+import { NotificationBell } from '../notifications/NotificationBell'
 
-export function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void
+}
+
+export function Topbar({ onMenuClick }: TopbarProps) {
   const { theme, setTheme } = useThemeStore()
   const { signOut, session } = useAuthStore()
 
   return (
-    <header className="h-14 border-b border-border bg-card flex items-center px-6 gap-3 flex-shrink-0">
+    <header className="h-14 border-b border-border bg-card flex items-center px-3 md:px-6 gap-3 flex-shrink-0">
+      {/* Mobile menu button */}
+      <button
+        onClick={onMenuClick}
+        className="md:hidden p-2 -ml-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors flex-shrink-0"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       {/* Global search placeholder */}
       <button
         id="global-search"
-        className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-md flex-1 max-w-sm hover:bg-muted/80"
+        className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-1.5 rounded-md flex-1 max-w-sm hover:bg-muted/80"
       >
         <Search className="h-3.5 w-3.5" />
         <span>Search...</span>
         <kbd className="ml-auto text-xs bg-background border border-border rounded px-1">/</kbd>
       </button>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1 md:gap-2">
         {/* Theme toggle */}
         <button
           className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground"
@@ -29,10 +43,8 @@ export function Topbar() {
            : <Monitor className="h-4 w-4" />}
         </button>
 
-        {/* Notification bell placeholder */}
-        <button className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-muted text-muted-foreground relative">
-          <Bell className="h-4 w-4" />
-        </button>
+        {/* Notification bell */}
+        <NotificationBell />
 
         {/* Profile */}
         <div className="relative group">

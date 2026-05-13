@@ -2,9 +2,14 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarDays, Timer, BookOpen, FileText,
   Layers, FolderOpen, ClipboardList, Newspaper, BarChart2,
-  Sparkles, Settings, GraduationCap
+  Sparkles, Settings, GraduationCap, X
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+
+interface SidebarProps {
+  collapsed?: boolean
+  onClose?: () => void
+}
 
 const navItems = [
   { to: '/',               icon: LayoutDashboard, label: 'Dashboard'      },
@@ -21,12 +26,17 @@ const navItems = [
   { to: '/settings',       icon: Settings,        label: 'Settings'       },
 ]
 
-export function Sidebar() {
+export function Sidebar({ onClose }: SidebarProps) {
   return (
-    <aside className="w-60 flex-shrink-0 border-r border-border bg-card flex flex-col">
+    <aside className="w-60 flex-shrink-0 border-r border-border bg-card flex flex-col h-full">
       <div className="h-14 flex items-center px-5 border-b border-border gap-2">
         <GraduationCap className="h-5 w-5 text-primary" />
         <span className="font-semibold tracking-tight text-foreground">PrepTrack</span>
+        {onClose && (
+          <button onClick={onClose} className="ml-auto md:hidden text-muted-foreground hover:text-foreground">
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
