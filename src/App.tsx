@@ -13,6 +13,8 @@ import { KeyNotesPage } from './pages/KeyNotesPage'
 import { ResourcesPage } from './pages/ResourcesPage'
 import { TestsPage } from './pages/TestsPage'
 import { CurrentAffairsPage } from './pages/CurrentAffairsPage'
+import { AnalyticsPage } from './pages/AnalyticsPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { useEffect, useState } from 'react'
 import { applyTheme, useThemeStore } from './store/themeStore'
 import { supabase } from './lib/supabase'
@@ -85,9 +87,9 @@ export default function App() {
           <Route path="/resources" element={<ResourcesPage />} />
           <Route path="/tests" element={<TestsPage />} />
           <Route path="/current-affairs" element={<CurrentAffairsPage />} />
-          <Route path="/analytics" element={<div className="text-muted-foreground">Analytics — Coming in Phase 12</div>} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/ai" element={<div className="text-muted-foreground">AI Assistant — Coming in Phase 13</div>} />
-          <Route path="/settings" element={<div className="text-muted-foreground">Settings — Coming in Phase 15</div>} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
