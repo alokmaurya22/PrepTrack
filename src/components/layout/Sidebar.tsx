@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarDays, Timer, BookOpen, FileText,
-  FolderOpen, ClipboardList, Newspaper, BarChart2,
+  Layers, FolderOpen, ClipboardList, Newspaper, BarChart2,
   Sparkles, Settings, GraduationCap
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/pomodoro',       icon: Timer,           label: 'Pomodoro'       },
   { to: '/syllabus',       icon: BookOpen,        label: 'Syllabus'       },
   { to: '/notes',          icon: FileText,        label: 'Notes'          },
+  { to: '/key-notes',      icon: Layers,          label: 'Flashcards'     },
   { to: '/resources',      icon: FolderOpen,      label: 'Resources'      },
   { to: '/tests',          icon: ClipboardList,   label: 'Tests & PYQs'   },
   { to: '/current-affairs',icon: Newspaper,       label: 'Current Affairs'},

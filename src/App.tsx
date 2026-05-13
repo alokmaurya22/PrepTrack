@@ -9,6 +9,7 @@ import { SyllabusPage } from './pages/SyllabusPage'
 import { PlannerPage } from './pages/PlannerPage'
 import { PomodoroPage } from './pages/PomodoroPage'
 import { NotesPage } from './pages/NotesPage'
+import { KeyNotesPage } from './pages/KeyNotesPage'
 import { useEffect, useState } from 'react'
 import { applyTheme, useThemeStore } from './store/themeStore'
 import { supabase } from './lib/supabase'
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="/pomodoro" element={<PomodoroPage />} />
           <Route path="/syllabus" element={<SyllabusPage />} />
           <Route path="/notes" element={<NotesPage />} />
+          <Route path="/key-notes" element={<KeyNotesPage />} />
           <Route path="/resources" element={<div className="text-muted-foreground">Resources — Coming in Phase 8</div>} />
           <Route path="/tests" element={<div className="text-muted-foreground">Tests — Coming in Phase 9</div>} />
           <Route path="/current-affairs" element={<div className="text-muted-foreground">Current Affairs — Coming in Phase 10</div>} />
