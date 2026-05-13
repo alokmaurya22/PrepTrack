@@ -11,6 +11,7 @@ import { PomodoroPage } from './pages/PomodoroPage'
 import { NotesPage } from './pages/NotesPage'
 import { KeyNotesPage } from './pages/KeyNotesPage'
 import { ResourcesPage } from './pages/ResourcesPage'
+import { TestsPage } from './pages/TestsPage'
 import { useEffect, useState } from 'react'
 import { applyTheme, useThemeStore } from './store/themeStore'
 import { supabase } from './lib/supabase'
@@ -81,7 +82,7 @@ export default function App() {
           <Route path="/notes" element={<NotesPage />} />
           <Route path="/key-notes" element={<KeyNotesPage />} />
           <Route path="/resources" element={<ResourcesPage />} />
-          <Route path="/tests" element={<div className="text-muted-foreground">Tests — Coming in Phase 9</div>} />
+          <Route path="/tests" element={<TestsPage />} />
           <Route path="/current-affairs" element={<div className="text-muted-foreground">Current Affairs — Coming in Phase 10</div>} />
           <Route path="/analytics" element={<div className="text-muted-foreground">Analytics — Coming in Phase 12</div>} />
           <Route path="/ai" element={<div className="text-muted-foreground">AI Assistant — Coming in Phase 13</div>} />
