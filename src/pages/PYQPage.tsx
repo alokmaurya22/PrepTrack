@@ -107,6 +107,15 @@ export function PYQPage() {
     }
   }, [questions])
 
+  // Years that have at least one logged question
+  const yearsWithData = useMemo(() => {
+    const set = new Set(Object.keys(summaryGrid).map(Number))
+    return YEARS.filter((y) => set.has(y))
+  }, [summaryGrid])
+
+  const [showAllYears, setShowAllYears] = useState(false)
+  const gridYears = showAllYears ? YEARS : yearsWithData.length > 0 ? yearsWithData : YEARS.slice(0, 10)
+
   if (isLoading) {
     return <div className="h-full flex items-center justify-center"><div className="text-muted-foreground animate-pulse">Loading PYQs…</div></div>
   }
@@ -140,6 +149,15 @@ export function PYQPage() {
 
         {/* Summary grid */}
         <div className="mb-6 overflow-x-auto">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-muted-foreground">Summary Grid</span>
+            <button
+              onClick={() => setShowAllYears((v) => !v)}
+              className="text-xs text-primary hover:underline"
+            >
+              {showAllYears ? 'Show years with data only' : `Show all ${YEARS.length} years`}
+            </button>
+          </div>
           <table className="w-full text-xs border border-border rounded-lg overflow-hidden">
             <thead>
               <tr className="bg-muted">
@@ -148,7 +166,7 @@ export function PYQPage() {
               </tr>
             </thead>
             <tbody>
-              {YEARS.slice(0, 10).map((y) => (
+              {gridYears.map((y) => (
                 <tr key={y} className="border-t border-border/50 hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedYear(y)}>
                   <td className={cn('p-2 font-medium', y === selectedYear && 'text-primary')}>{y}</td>
                   {PAPERS.map((p) => {
