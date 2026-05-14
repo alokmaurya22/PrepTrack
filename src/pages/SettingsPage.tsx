@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react'
-import { User, Bell, Palette, Shield, LogOut, Sparkles, Eye, EyeOff } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { User, Bell, Palette, Shield, LogOut, Sparkles, Eye, EyeOff, Camera, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore, applyTheme } from '../store/themeStore'
 import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
 import { cn } from '../lib/utils'
+import { useQueryClient } from '@tanstack/react-query'
 
 const OPENROUTER_KEY = 'prep-openrouter-api-key'
 
 export function SettingsPage() {
   const { signOut, session } = useAuthStore()
   const { theme, setTheme } = useThemeStore()
+  const queryClient = useQueryClient()
   const [tab, setTab] = useState<'profile' | 'appearance' | 'notifications' | 'ai' | 'account'>('profile')
 
   // AI API key state
@@ -30,20 +32,24 @@ export function SettingsPage() {
   // Profile state
   const [displayName, setDisplayName] = useState('')
   const [targetExam, setTargetExam] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!session) return
     supabase
       .from('profiles')
-      .select('display_name, target_exam_name')
+      .select('full_name, target_exam_name, avatar_url')
       .eq('user_id', session.user.id)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
-          setDisplayName(data.display_name || '')
+          setDisplayName(data.full_name || '')
           setTargetExam(data.target_exam_name || '')
+          setAvatarUrl(data.avatar_url || null)
         }
         setProfileLoaded(true)
       })
@@ -55,12 +61,75 @@ export function SettingsPage() {
     const { error } = await supabase
       .from('profiles')
       .upsert(
-        { user_id: session.user.id, display_name: displayName, target_exam_name: targetExam },
+        { user_id: session.user.id, full_name: displayName, target_exam_name: targetExam },
         { onConflict: 'user_id' }
       )
+    if (!error) {
+      // Also update auth metadata so dashboard greeting reflects the new name
+      await supabase.auth.updateUser({ data: { display_name: displayName } })
+      queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] })
+    }
     setSaving(false)
     if (error) toast.error(error.message)
     else toast.success('Profile saved')
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !session) return
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be under 2 MB')
+      return
+    }
+
+    setUploading(true)
+    const path = `${session.user.id}/avatar`
+
+    const { error: uploadErr } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true, contentType: file.type })
+
+    if (uploadErr) {
+      toast.error('Upload failed: ' + uploadErr.message)
+      setUploading(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+    const urlWithBust = `${publicUrl}?v=${Date.now()}`
+
+    const { error: dbErr } = await supabase
+      .from('profiles')
+      .upsert({ user_id: session.user.id, avatar_url: urlWithBust }, { onConflict: 'user_id' })
+
+    if (dbErr) {
+      toast.error(dbErr.message)
+    } else {
+      setAvatarUrl(urlWithBust)
+      queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] })
+      toast.success('Profile picture updated')
+    }
+    setUploading(false)
+    // Reset input so re-selecting same file triggers onChange
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function removeAvatar() {
+    if (!session) return
+    setUploading(true)
+    await supabase.storage.from('avatars').remove([`${session.user.id}/avatar`])
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({ user_id: session.user.id, avatar_url: null }, { onConflict: 'user_id' })
+    if (!error) {
+      setAvatarUrl(null)
+      queryClient.invalidateQueries({ queryKey: ['profile', session.user.id] })
+      toast.success('Profile picture removed')
+    } else {
+      toast.error(error.message)
+    }
+    setUploading(false)
   }
 
   const tabs = [
@@ -73,6 +142,8 @@ export function SettingsPage() {
 
   const inputCls =
     'w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring'
+
+  const initial = (displayName?.[0] || session?.user?.email?.[0] || '?').toUpperCase()
 
   return (
     <div className="h-full flex flex-col">
@@ -103,8 +174,68 @@ export function SettingsPage() {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {tab === 'profile' && (
-            <div className="max-w-md space-y-4">
+            <div className="max-w-md space-y-5">
               <h2 className="text-lg font-semibold text-foreground">Profile</h2>
+
+              {/* Avatar upload */}
+              <div className="flex items-center gap-5">
+                <div className="relative flex-shrink-0">
+                  <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+                    {uploading ? (
+                      <div className="h-full w-full bg-muted flex items-center justify-center">
+                        <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    ) : avatarUrl ? (
+                      <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-2xl font-bold text-muted-foreground">{initial}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Profile Picture</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG, WebP — max 2 MB</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="text-xs text-primary hover:underline disabled:opacity-50"
+                    >
+                      {avatarUrl ? 'Change photo' : 'Upload photo'}
+                    </button>
+                    {avatarUrl && (
+                      <>
+                        <span className="text-muted-foreground/40 text-xs">·</span>
+                        <button
+                          type="button"
+                          onClick={removeAvatar}
+                          disabled={uploading}
+                          className="text-xs text-destructive hover:underline disabled:opacity-50 flex items-center gap-1"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Remove
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </div>
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Display Name</label>

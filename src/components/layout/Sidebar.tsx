@@ -7,6 +7,8 @@ import {
   RotateCcw, ListChecks
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useAuthStore } from '../../store/authStore'
+import { useProfile } from '../../lib/queries/profile'
 
 interface SidebarProps {
   onClose?: () => void
@@ -62,6 +64,17 @@ const sections = [
 ]
 
 export function Sidebar({ onClose }: SidebarProps) {
+  const { session } = useAuthStore()
+  const { data: profile } = useProfile()
+
+  const name = profile?.full_name
+    || session?.user?.user_metadata?.display_name
+    || session?.user?.email?.split('@')[0]
+    || ''
+  const email = session?.user?.email || ''
+  const avatarUrl = profile?.avatar_url || null
+  const initial = (name?.[0] || email?.[0] || '?').toUpperCase()
+
   return (
     <aside className="w-56 flex-shrink-0 border-r border-border bg-card flex flex-col h-full">
       {/* Logo */}
@@ -104,8 +117,30 @@ export function Sidebar({ onClose }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Settings pinned to bottom */}
-      <div className="p-2 border-t border-border">
+      {/* User card + Settings pinned to bottom */}
+      <div className="p-2 border-t border-border space-y-1">
+        {/* User info card */}
+        <NavLink
+          to="/settings"
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-md hover:bg-muted transition-colors group"
+        >
+          {/* Avatar */}
+          <div className="h-7 w-7 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center flex-shrink-0 ring-1 ring-border">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold text-primary">{initial}</span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            {name && (
+              <p className="text-xs font-medium text-foreground truncate leading-tight">{name}</p>
+            )}
+            <p className="text-[10px] text-muted-foreground truncate leading-tight">{email}</p>
+          </div>
+        </NavLink>
+
+        {/* Settings link */}
         <NavLink
           to="/settings"
           className={({ isActive }) =>

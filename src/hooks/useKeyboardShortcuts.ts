@@ -13,7 +13,7 @@ export function useKeyboardShortcuts() {
 
       if (e.key === '/') {
         e.preventDefault()
-        document.getElementById('global-search')?.focus()
+        document.dispatchEvent(new CustomEvent('open-search'))
         return
       }
 
