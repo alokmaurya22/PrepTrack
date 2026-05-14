@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 export interface SyllabusNode {
   id: string
+  user_id: string | null
   parent_id: string | null
   level: number
   code: string
@@ -67,17 +68,20 @@ export function useSyllabusNodes(parentId: string | null = null) {
 }
 
 export function useAllSyllabusNodes() {
+  const { session } = useAuthStore()
   return useQuery({
-    queryKey: ['syllabus', 'all'],
+    queryKey: ['syllabus', 'all', session?.user?.id],
+    enabled: !!session,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('syllabus_nodes')
         .select('*')
+        .eq('user_id', session!.user.id)
         .order('sort_order')
       if (error) throw error
       return data as SyllabusNode[]
     },
-    staleTime: 1000 * 60 * 30, // 30 min — rarely changes
+    staleTime: 1000 * 60 * 5, // 5 min — nodes change now
   })
 }
 
@@ -238,18 +242,133 @@ export function useDeleteNodeSource() {
 }
 
 export function useSearchSyllabus(query: string) {
+  const { session } = useAuthStore()
   return useQuery({
-    queryKey: ['syllabus-search', query],
-    enabled: query.length > 1,
+    queryKey: ['syllabus-search', query, session?.user?.id],
+    enabled: !!session && query.length > 1,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('syllabus_nodes')
         .select('*')
+        .eq('user_id', session!.user.id)
         .ilike('title', `%${query}%`)
         .order('level')
         .limit(50)
       if (error) throw error
       return data as SyllabusNode[]
     },
+  })
+}
+
+export function useCreateSyllabusNode() {
+  const { session } = useAuthStore()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (node: {
+      parent_id: string | null
+      title: string
+      description?: string
+      stage?: 'prelims' | 'mains' | 'interview' | null
+      paper?: string
+      default_hours?: number
+      is_leaf?: boolean
+      level: number
+      sort_order: number
+      initialStatus?: string
+    }) => {
+      const { data, error } = await supabase
+        .from('syllabus_nodes')
+        .insert({
+          user_id: session!.user.id,
+          parent_id: node.parent_id,
+          title: node.title,
+          description: node.description || null,
+          stage: node.stage || null,
+          paper: node.paper || null,
+          default_hours: node.default_hours || 2,
+          is_leaf: node.is_leaf ?? true,
+          level: node.level,
+          sort_order: node.sort_order,
+          code: '',
+          metadata: {},
+        })
+        .select()
+        .single()
+      if (error) throw error
+      const created = data as SyllabusNode
+
+      // Immediately set initial status if not the default
+      if (node.initialStatus && node.initialStatus !== 'not_started') {
+        await supabase.from('user_syllabus_progress').upsert(
+          {
+            user_id: session!.user.id,
+            syllabus_node_id: created.id,
+            status: node.initialStatus,
+            completed_at: node.initialStatus === 'completed' ? new Date().toISOString() : null,
+          },
+          { onConflict: 'user_id,syllabus_node_id' },
+        )
+      }
+
+      return created
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['syllabus'] })
+      qc.invalidateQueries({ queryKey: ['syllabus-progress'] })
+      toast.success('Added successfully')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+}
+
+export function useUpdateSyllabusNode() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (node: {
+      id: string
+      title: string
+      description?: string
+      stage?: 'prelims' | 'mains' | 'interview' | null
+      paper?: string
+      default_hours?: number
+      is_leaf?: boolean
+    }) => {
+      const { error } = await supabase
+        .from('syllabus_nodes')
+        .update({
+          title: node.title,
+          description: node.description || null,
+          stage: node.stage || null,
+          paper: node.paper || null,
+          default_hours: node.default_hours || 2,
+          is_leaf: node.is_leaf ?? true,
+        })
+        .eq('id', node.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['syllabus'] })
+      toast.success('Topic updated')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+}
+
+export function useDeleteSyllabusNode() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('syllabus_nodes')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['syllabus'] })
+      qc.invalidateQueries({ queryKey: ['syllabus-progress'] })
+      toast.success('Topic deleted')
+    },
+    onError: (e: Error) => toast.error(e.message),
   })
 }

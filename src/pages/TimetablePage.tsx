@@ -189,6 +189,7 @@ export function TimetablePage() {
       supabase
         .from('syllabus_nodes')
         .select('id, title, code, default_hours, paper, stage, sort_order')
+        .eq('user_id', userId)
         .eq('is_leaf', true)
         .order('sort_order'),
     ])
@@ -196,6 +197,7 @@ export function TimetablePage() {
     const completedIds = new Set(
       progressData?.filter((p) => p.status === 'completed').map((p) => p.syllabus_node_id) ?? [],
     )
+    // Include not_started, in_progress, and needs_revision — exclude only completed
     const pending = (allLeaves ?? []).filter((n) => !completedIds.has(n.id))
     setPendingTopics(pending)
     setLoadingTopics(false)
