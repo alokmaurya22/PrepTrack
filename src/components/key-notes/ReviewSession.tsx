@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRight, RotateCcw, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, RotateCcw } from 'lucide-react'
 import { useDueKeyNotes, useReviewKeyNote, type KeyNote } from '../../lib/queries/keyNotes'
 import { cn } from '../../lib/utils'
 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import {
   GraduationCap, BookOpen, CalendarDays, Timer, Sparkles, BarChart2,
-  FileText, Newspaper, List, Target, Flame, HelpCircle, CalendarCheck2,
+  Newspaper, List, Target, Flame, HelpCircle, CalendarCheck2,
   Star, Brain, Layers, ClipboardList, Repeat, BookMarked, Trophy,
   ArrowRight, Menu, X, Lightbulb, CheckCircle2, AlertCircle,
 } from 'lucide-react'

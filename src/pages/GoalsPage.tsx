@@ -3,7 +3,7 @@ import { Plus, Target, TrendingUp, CheckCircle2, X, Trophy } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
 import { toast } from 'sonner'
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns'
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import { cn } from '../lib/utils'
 
 interface Goal {

@@ -414,10 +414,10 @@ function RefCard({
   onEdit: (r: QuickRef) => void
   onDelete: (id: string) => void
   onPin: (r: QuickRef) => void
-  inlineEdit: { id: string; field: string; val: string } | null
+  inlineEdit: { id: string; field: 'title' | 'content'; val: string } | null
   setInlineEdit: (v: { id: string; field: 'title' | 'content'; val: string } | null) => void
   onSaveInline: () => void
-  textareaRef: React.RefObject<HTMLTextAreaElement>
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>
 }) {
   const isExpanded = expanded === ref_.id
   const preview = ref_.content.slice(0, 120) + (ref_.content.length > 120 ? '…' : '')
