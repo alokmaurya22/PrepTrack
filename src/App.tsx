@@ -21,6 +21,11 @@ import { ExamCalendarPage } from './pages/ExamCalendarPage'
 import { GoalsPage } from './pages/GoalsPage'
 import { QuickRefPage } from './pages/QuickRefPage'
 import { ReadingListPage } from './pages/ReadingListPage'
+import { AIPage } from './pages/AIPage'
+import { AchievementsPage } from './pages/AchievementsPage'
+import { TimetablePage } from './pages/TimetablePage'
+import { RevisionPage } from './pages/RevisionPage'
+import { HabitsPage } from './pages/HabitsPage'
 import { useEffect } from 'react'
 import { applyTheme, useThemeStore } from './store/themeStore'
 
@@ -73,7 +78,11 @@ export default function App() {
           <Route path="/exam-calendar"  element={<ExamCalendarPage />} />
           <Route path="/quick-ref"      element={<QuickRefPage />} />
           <Route path="/reading-list"   element={<ReadingListPage />} />
-          <Route path="/ai"             element={<div className="p-6 text-muted-foreground text-sm">AI Assistant — Coming soon. Configure your OpenRouter API key in Settings to enable.</div>} />
+          <Route path="/ai"             element={<AIPage />} />
+          <Route path="/achievements"   element={<AchievementsPage />} />
+          <Route path="/timetable"      element={<TimetablePage />} />
+          <Route path="/revision"       element={<RevisionPage />} />
+          <Route path="/habits"         element={<HabitsPage />} />
           <Route path="/settings"       element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

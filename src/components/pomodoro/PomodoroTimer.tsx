@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check } from 'lucide-react'
+import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useStartSession, useEndSession } from '../../lib/queries/sessions'
+import { useTasksForDate } from '../../lib/queries/tasks'
+import { format } from 'date-fns'
 
 type TimerState = 'idle' | 'running' | 'paused' | 'finished'
 
@@ -33,6 +35,11 @@ export function PomodoroTimer() {
   const [durations, setDurations] = useState<Durations>(loadDurations)
   const [showSettings, setShowSettings] = useState(false)
   const [draft, setDraft] = useState<Durations>(durations)
+
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const { data: todayTasks } = useTasksForDate(today)
+  const pendingTasks = (todayTasks || []).filter((t) => t.status !== 'completed' && t.status !== 'cancelled')
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
 
   const [mode, setMode] = useState<'focus' | 'break' | 'long_break'>('focus')
   const [timeLeft, setTimeLeft] = useState(loadDurations().focus * 60)
@@ -81,7 +88,10 @@ export function PomodoroTimer() {
 
   const start = async () => {
     if (timerState === 'idle') {
-      const session = await startSession.mutateAsync({ session_type: mode })
+      const session = await startSession.mutateAsync({
+        session_type: mode,
+        task_id: mode === 'focus' ? selectedTaskId || undefined : undefined,
+      })
       setSessionId(session.id)
     }
     setTimerState('running')
@@ -308,6 +318,25 @@ export function PomodoroTimer() {
           </button>
         )}
       </div>
+
+      {/* Task link — shown only in idle focus mode */}
+      {mode === 'focus' && timerState === 'idle' && pendingTasks.length > 0 && (
+        <div className="w-full max-w-xs">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+            <Link2 className="h-3 w-3" /> Link to task (optional)
+          </label>
+          <select
+            value={selectedTaskId ?? ''}
+            onChange={(e) => setSelectedTaskId(e.target.value || null)}
+            className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">— No task —</option>
+            {pendingTasks.map((t) => (
+              <option key={t.id} value={t.id}>{t.title}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Session counter */}
       <div className="text-xs text-muted-foreground">

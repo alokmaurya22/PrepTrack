@@ -8,6 +8,7 @@ export interface CAEntry {
   user_id: string
   date: string
   source_url: string | null
+  source_name: string | null
   title: string
   summary: string | null
   tags: string[]
@@ -67,6 +68,7 @@ export function useCreateCAEntry() {
       date: string
       title: string
       source_url?: string
+      source_name?: string
       summary?: string
       tags?: string[]
     }) => {
@@ -75,6 +77,7 @@ export function useCreateCAEntry() {
         date: entry.date,
         title: entry.title,
         source_url: entry.source_url || null,
+        source_name: entry.source_name || null,
         summary: entry.summary || null,
         tags: entry.tags || [],
       })

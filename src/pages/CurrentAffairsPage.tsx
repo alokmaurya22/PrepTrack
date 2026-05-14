@@ -12,14 +12,20 @@ export function CurrentAffairsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
 
+  const [sourceFilter, setSourceFilter] = useState('all')
+
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [sourceName, setSourceName] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')
   const [summary, setSummary] = useState('')
   const [tags, setTags] = useState('')
   const [tagList, setTagList] = useState<string[]>([])
 
+  const allSources = ['all', ...Array.from(new Set((entries || []).map((e) => e.source_name).filter(Boolean) as string[]))]
+
   const filtered = entries?.filter((e) => {
+    if (sourceFilter !== 'all' && e.source_name !== sourceFilter) return false
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
     return (
@@ -54,6 +60,7 @@ export function CurrentAffairsPage() {
       {
         date,
         title: title.trim(),
+        source_name: sourceName || undefined,
         source_url: sourceUrl || undefined,
         summary: summary || undefined,
         tags: tagList,
@@ -62,6 +69,7 @@ export function CurrentAffairsPage() {
         onSuccess: () => {
           setShowForm(false)
           setTitle('')
+          setSourceName('')
           setSourceUrl('')
           setSummary('')
           setTagList([])
@@ -100,6 +108,23 @@ export function CurrentAffairsPage() {
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
+          {allSources.length > 1 && (
+            <div className="flex gap-1 flex-wrap">
+              {allSources.map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setSourceFilter(src)}
+                  className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                    sourceFilter === src
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                  }`}
+                >
+                  {src === 'all' ? 'All Sources' : src}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -140,8 +165,13 @@ export function CurrentAffairsPage() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="text-sm font-medium text-foreground">{entry.title}</h4>
+                                {entry.source_name && (
+                                  <span className="text-[10px] px-1.5 py-px rounded-full bg-muted text-muted-foreground font-medium flex-shrink-0">
+                                    {entry.source_name}
+                                  </span>
+                                )}
                                 {entry.source_url && (
                                   <a
                                     href={entry.source_url}
@@ -212,13 +242,20 @@ export function CurrentAffairsPage() {
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <input
-                  type="url"
-                  placeholder="Source URL"
-                  value={sourceUrl}
-                  onChange={(e) => setSourceUrl(e.target.value)}
+                  type="text"
+                  placeholder="Source name (e.g. The Hindu)"
+                  value={sourceName}
+                  onChange={(e) => setSourceName(e.target.value)}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
+              <input
+                type="url"
+                placeholder="Source URL (optional)"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
               <textarea
                 placeholder="Summary (optional)"
                 value={summary}

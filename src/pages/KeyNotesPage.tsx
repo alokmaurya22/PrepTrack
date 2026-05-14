@@ -1,9 +1,104 @@
 import { useState } from 'react'
-import { Plus, Layers } from 'lucide-react'
+import { Plus, Layers, RotateCcw, Trash2 } from 'lucide-react'
 import { useAllKeyNotes, useDeleteKeyNote, type KeyNote } from '../lib/queries/keyNotes'
 import { ReviewSession } from '../components/key-notes/ReviewSession'
 import { KeyNoteForm } from '../components/key-notes/KeyNoteForm'
 import { cn } from '../lib/utils'
+
+const CARD_GRADIENTS = [
+  'from-violet-400 to-purple-500',
+  'from-blue-400 to-indigo-500',
+  'from-emerald-400 to-teal-500',
+  'from-amber-400 to-orange-500',
+  'from-pink-400 to-rose-500',
+  'from-cyan-400 to-blue-500',
+]
+
+function LibraryCard({ note, index, onDelete }: { note: KeyNote; index: number; onDelete: () => void }) {
+  const [flipped, setFlipped] = useState(false)
+  const gradient = CARD_GRADIENTS[index % CARD_GRADIENTS.length]
+
+  return (
+    <div style={{ perspective: '1200px' }}>
+      <div
+        style={{
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.55s cubic-bezier(0.4,0.2,0.2,1)',
+          transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+          position: 'relative',
+          height: '180px',
+        }}
+      >
+        {/* Front face */}
+        <div
+          style={{ backfaceVisibility: 'hidden', position: 'absolute', inset: 0 }}
+          className={cn(
+            'rounded-xl bg-gradient-to-br shadow-md flex flex-col justify-between p-4 group',
+            gradient
+          )}
+        >
+          {/* Delete button — top-right, visible on hover */}
+          <div className="flex justify-end">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full bg-black/20 hover:bg-red-500/80 p-1.5 text-white"
+              title="Delete card"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Question text */}
+          <p className="text-sm font-bold text-white leading-snug line-clamp-3 flex-1 flex items-center">
+            {note.front_text}
+          </p>
+
+          {/* Bottom row */}
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-[10px] text-white/50">Reps: {note.repetitions}</span>
+            <button
+              onClick={() => setFlipped(true)}
+              className="flex items-center gap-1 text-[10px] text-white/70 hover:text-white transition-colors"
+            >
+              <RotateCcw className="h-3 w-3" />
+              flip
+            </button>
+          </div>
+        </div>
+
+        {/* Back face */}
+        <div
+          style={{
+            backfaceVisibility: 'hidden',
+            transform: 'rotateY(180deg)',
+            position: 'absolute',
+            inset: 0,
+          }}
+          className="rounded-xl bg-white dark:bg-neutral-900 border border-border shadow-md flex flex-col justify-between p-4"
+        >
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Answer
+          </p>
+          <p className="text-sm text-foreground leading-snug line-clamp-4 flex-1 flex items-center">
+            {note.back_text}
+          </p>
+          <div className="flex justify-end mt-2">
+            <button
+              onClick={() => setFlipped(false)}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <RotateCcw className="h-3 w-3" />
+              flip back
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function KeyNotesPage() {
   const { data: allNotes, isLoading } = useAllKeyNotes()
@@ -73,26 +168,14 @@ export function KeyNotesPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {allNotes?.map((note: KeyNote) => (
-                  <div
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {allNotes?.map((note: KeyNote, index: number) => (
+                  <LibraryCard
                     key={note.id}
-                    className="border border-border rounded-lg p-4 bg-card hover:bg-muted/30 transition-colors"
-                  >
-                    <p className="text-sm font-medium text-foreground mb-2">{note.front_text}</p>
-                    <p className="text-xs text-muted-foreground line-clamp-3 mb-3">{note.back_text}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground">
-                        Reps: {note.repetitions} · EF: {note.ease_factor.toFixed(1)}
-                      </span>
-                      <button
-                        onClick={() => deleteKeyNote.mutate(note.id)}
-                        className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+                    note={note}
+                    index={index}
+                    onDelete={() => deleteKeyNote.mutate(note.id)}
+                  />
                 ))}
               </div>
             )}

@@ -20,13 +20,24 @@ interface ReadingItem {
   created_at: string
 }
 
-const TYPE_ICONS: Record<ReadingItem['type'], React.ReactNode> = {
-  book:     <BookOpen className="h-4 w-4" />,
-  article:  <span className="text-sm">📄</span>,
-  video:    <Play className="h-4 w-4" />,
-  pdf:      <span className="text-sm">📑</span>,
-  podcast:  <span className="text-sm">🎙</span>,
-  other:    <span className="text-sm">📌</span>,
+// Icon content per type (emoji or lucide element)
+const TYPE_ICON_CONTENT: Record<ReadingItem['type'], React.ReactNode> = {
+  book:    <BookOpen className="h-3 w-3" />,
+  article: <span className="text-[11px]">📄</span>,
+  video:   <Play className="h-3 w-3" />,
+  pdf:     <span className="text-[11px]">📑</span>,
+  podcast: <span className="text-[11px]">🎙</span>,
+  other:   <span className="text-[11px]">📌</span>,
+}
+
+// Color pill classes per type
+const TYPE_PILL_CLASSES: Record<ReadingItem['type'], string> = {
+  book:    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  article: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  video:   'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  pdf:     'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+  podcast: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  other:   'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
 }
 
 const STATUS_STYLES: Record<ReadingItem['status'], string> = {
@@ -40,6 +51,14 @@ const PRIORITY_DOT: Record<ReadingItem['priority'], string> = {
   high:   'bg-red-500',
   medium: 'bg-amber-400',
   low:    'bg-slate-300',
+}
+
+// Left border color per status
+const STATUS_BORDER: Record<ReadingItem['status'], string> = {
+  to_read:   'border-l-slate-400',
+  reading:   'border-l-blue-500',
+  completed: 'border-l-emerald-500',
+  dropped:   'border-l-red-400',
 }
 
 const EMPTY_FORM = {
@@ -148,7 +167,8 @@ export function ReadingListPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      {/* Header — gradient */}
+      <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 flex items-center justify-between px-4 py-3 border-b border-border">
         <div>
           <h1 className="text-lg font-bold text-foreground">Reading List</h1>
           <p className="text-xs text-muted-foreground">
@@ -156,7 +176,7 @@ export function ReadingListPage() {
           </p>
         </div>
         <button onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true) }}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shadow-md">
           <Plus className="h-4 w-4" /> Add
         </button>
       </div>
@@ -175,7 +195,9 @@ export function ReadingListPage() {
               {(['all','to_read','reading','completed'] as const).map(s => (
                 <button key={s} onClick={() => setStatusFilter(s)}
                   className={cn('px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                    statusFilter === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                    statusFilter === s
+                      ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/70'
                   )}>
                   {s === 'all' ? `All (${counts.all})` :
                    s === 'to_read' ? `Queue (${counts.to_read})` :
@@ -209,11 +231,19 @@ export function ReadingListPage() {
                   ? Math.round((item.pages_read / item.total_pages) * 100) : null
                 return (
                   <div key={item.id}
-                    className="flex items-start gap-3 p-3 bg-card border border-border rounded-xl hover:border-border/80 transition-colors">
-                    {/* Priority dot + type icon */}
-                    <div className="flex flex-col items-center gap-1 flex-shrink-0 pt-0.5">
-                      <div className={cn('h-2 w-2 rounded-full', PRIORITY_DOT[item.priority])} />
-                      <div className="text-muted-foreground">{TYPE_ICONS[item.type]}</div>
+                    className={cn(
+                      'flex items-start gap-3 p-3 bg-card border border-border rounded-xl hover:border-border/80 transition-colors border-l-4',
+                      STATUS_BORDER[item.status]
+                    )}>
+                    {/* Priority dot + type pill */}
+                    <div className="flex flex-col items-center gap-1.5 flex-shrink-0 pt-0.5">
+                      <div className={cn('h-2.5 w-2.5 rounded-full', PRIORITY_DOT[item.priority])} />
+                      <span className={cn(
+                        'inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
+                        TYPE_PILL_CLASSES[item.type]
+                      )}>
+                        {TYPE_ICON_CONTENT[item.type]}
+                      </span>
                     </div>
 
                     {/* Content */}
@@ -232,7 +262,7 @@ export function ReadingListPage() {
                       {progress !== null && item.status === 'reading' && (
                         <div className="mt-1.5 flex items-center gap-2">
                           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full" style={{ width: `${progress}%` }} />
+                            <div className="h-full bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full" style={{ width: `${progress}%` }} />
                           </div>
                           <span className="text-[10px] text-muted-foreground flex-shrink-0">{progress}%</span>
                         </div>

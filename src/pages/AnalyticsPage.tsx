@@ -17,8 +17,8 @@ export function AnalyticsPage() {
   const { data: weekTasks } = useTasksForWeek(weekStart, weekEnd)
   const { data: tests } = useTests()
 
-  // Last 7 days for focus chart
-  const [rangeStart] = useState(() => format(subDays(new Date(), 6), 'yyyy-MM-dd'))
+  // Last 28 days for charts and heatmap
+  const [rangeStart] = useState(() => format(subDays(new Date(), 27), 'yyyy-MM-dd'))
   const [rangeEnd]   = useState(() => format(new Date(), 'yyyy-MM-dd') + 'T23:59:59')
   const { data: rangeSessions } = useSessionsForRange(rangeStart, rangeEnd)
 
@@ -67,16 +67,20 @@ export function AnalyticsPage() {
     }
   }, [tests])
 
-  // Last 7 days daily focus minutes
-  const last7Days = useMemo(() => {
-    const minutesByDate: Record<string, number> = {}
+  // Build minutes-by-date from all range sessions
+  const minutesByDate = useMemo(() => {
+    const map: Record<string, number> = {}
     ;(rangeSessions || [])
       .filter((s) => s.session_type === 'focus' && s.duration_minutes)
       .forEach((s) => {
         const date = s.started_at.split('T')[0]
-        minutesByDate[date] = (minutesByDate[date] || 0) + (s.duration_minutes || 0)
+        map[date] = (map[date] || 0) + (s.duration_minutes || 0)
       })
+    return map
+  }, [rangeSessions])
 
+  // Last 7 days daily focus minutes
+  const last7Days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = subDays(new Date(), 6 - i)
       const dateStr = format(d, 'yyyy-MM-dd')
@@ -87,7 +91,18 @@ export function AnalyticsPage() {
         minutes: minutesByDate[dateStr] || 0,
       }
     })
-  }, [rangeSessions])
+  }, [minutesByDate])
+
+  // Last 28 days for heatmap
+  const last28Days = useMemo(() => {
+    return Array.from({ length: 28 }, (_, i) => {
+      const d = subDays(new Date(), 27 - i)
+      const dateStr = format(d, 'yyyy-MM-dd')
+      return { date: dateStr, label: format(d, 'MMM d'), minutes: minutesByDate[dateStr] || 0 }
+    })
+  }, [minutesByDate])
+
+  const heatmapMax = Math.max(...last28Days.map((d) => d.minutes), 60)
 
   const maxMinutes = Math.max(...last7Days.map((d) => d.minutes), 1)
 
@@ -196,6 +211,46 @@ export function AnalyticsPage() {
                   : `${total}m`
               })()}
             </span>
+          </div>
+        </div>
+
+        {/* 28-day activity heatmap */}
+        <div className="border border-border rounded-lg bg-card p-4">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Activity — Last 28 Days</h3>
+          <div className="grid grid-cols-7 gap-1">
+            {last28Days.map(({ date, label, minutes }) => {
+              const intensity = minutes === 0 ? 0 : Math.min(1, minutes / heatmapMax)
+              const isToday = date === format(new Date(), 'yyyy-MM-dd')
+              return (
+                <div
+                  key={date}
+                  title={`${label}: ${minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`}`}
+                  className="aspect-square rounded-sm relative group cursor-default"
+                  style={{
+                    backgroundColor: minutes === 0
+                      ? 'hsl(var(--muted))'
+                      : `hsl(var(--primary) / ${Math.max(0.15, intensity)})`,
+                    outline: isToday ? '2px solid hsl(var(--primary))' : 'none',
+                    outlineOffset: '1px',
+                  }}
+                >
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-foreground text-background text-[9px] rounded px-1.5 py-0.5 whitespace-nowrap">
+                    {label}: {minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="flex items-center justify-end gap-2 mt-2">
+            <span className="text-[10px] text-muted-foreground">Less</span>
+            {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+              <div
+                key={v}
+                className="h-3 w-3 rounded-sm"
+                style={{ backgroundColor: v === 0 ? 'hsl(var(--muted))' : `hsl(var(--primary) / ${v})` }}
+              />
+            ))}
+            <span className="text-[10px] text-muted-foreground">More</span>
           </div>
         </div>
 

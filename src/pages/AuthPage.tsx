@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseAdmin } from '../lib/supabase'
 import { toast } from 'sonner'
-import { GraduationCap } from 'lucide-react'
+import { GraduationCap, KeyRound, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const loginSchema = z.object({
@@ -192,8 +192,114 @@ function SignupForm() {
   )
 }
 
+function AccessKeyForm({ onBack }: { onBack: () => void }) {
+  const [key, setKey] = useState('')
+  const [showKey, setShowKey] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = key.trim()
+    if (!trimmed) return
+
+    if (!supabaseAdmin) {
+      toast.error('Access key login is not available')
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Step 1: Resolve the user from the provided key
+      const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.getUserById(trimmed)
+      if (userErr || !userData?.user?.email) {
+        toast.error('Invalid access key')
+        setLoading(false)
+        return
+      }
+
+      // Step 2: Generate a one-time magic link for that user's email
+      const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: userData.user.email,
+      })
+      if (linkErr || !linkData?.properties?.hashed_token) {
+        toast.error('Could not generate access token')
+        setLoading(false)
+        return
+      }
+
+      // Step 3: Verify the token to create a real session
+      const { error: verifyErr } = await supabase.auth.verifyOtp({
+        token_hash: linkData.properties.hashed_token,
+        type: 'magiclink',
+      })
+      if (verifyErr) {
+        toast.error('Access key verification failed')
+        setLoading(false)
+        return
+      }
+
+      // Auth state listener in authStore will handle the rest
+      toast.success('Access granted')
+    } catch {
+      toast.error('Invalid access key')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="space-y-5">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to sign in
+      </button>
+
+      <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-start gap-3">
+        <KeyRound className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Enter your access key to sign in instantly — no email or password needed.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">Access Key</label>
+          <div className="relative">
+            <input
+              type={showKey ? 'text' : 'password'}
+              value={key}
+              onChange={e => setKey(e.target.value)}
+              placeholder="Enter your access key"
+              autoFocus
+              autoComplete="off"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring pr-10 font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(v => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading || !key.trim()}
+          className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Verifying…' : 'Continue'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
 export function AuthPage() {
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<'login' | 'signup' | 'access-key'>('login')
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -222,26 +328,52 @@ export function AuthPage() {
       {/* Right panel — form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md space-y-6">
-          <div className="text-center space-y-1">
-            <h2 className="text-2xl font-bold text-foreground">
-              {mode === 'login' ? 'Welcome back' : 'Create your account'}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {mode === 'login' ? 'Sign in to continue your preparation' : 'Start tracking your preparation today'}
-            </p>
-          </div>
 
-          {mode === 'login' ? <LoginForm /> : <SignupForm />}
+          {mode === 'access-key' ? (
+            <>
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold text-foreground">Access Key Login</h2>
+                <p className="text-muted-foreground text-sm">Direct access without email or password</p>
+              </div>
+              <AccessKeyForm onBack={() => setMode('login')} />
+            </>
+          ) : (
+            <>
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold text-foreground">
+                  {mode === 'login' ? 'Welcome back' : 'Create your account'}
+                </h2>
+                <p className="text-muted-foreground text-sm">
+                  {mode === 'login' ? 'Sign in to continue your preparation' : 'Start tracking your preparation today'}
+                </p>
+              </div>
 
-          <p className="text-center text-sm text-muted-foreground">
-            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <button
-              className="text-primary hover:underline font-medium inline"
-              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-            >
-              {mode === 'login' ? 'Sign up' : 'Sign in'}
-            </button>
-          </p>
+              {mode === 'login' ? <LoginForm /> : <SignupForm />}
+
+              <p className="text-center text-sm text-muted-foreground">
+                {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+                <button
+                  className="text-primary hover:underline font-medium inline"
+                  onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                >
+                  {mode === 'login' ? 'Sign up' : 'Sign in'}
+                </button>
+              </p>
+
+              {/* Access Key entry point — subtle, only on login tab */}
+              {mode === 'login' && supabaseAdmin && (
+                <div className="text-center">
+                  <button
+                    onClick={() => setMode('access-key')}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    Use Access Key
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

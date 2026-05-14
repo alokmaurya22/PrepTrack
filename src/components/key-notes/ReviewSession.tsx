@@ -64,25 +64,29 @@ export function ReviewSession() {
 
   if (totalDue === 0 && !finished) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <CheckCircle2 className="h-12 w-12 text-emerald-500 mb-4" />
-        <h3 className="text-lg font-semibold text-foreground">All caught up!</h3>
-        <p className="text-sm text-muted-foreground mt-1">No flashcards due for review.</p>
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <span className="text-5xl">✅</span>
+        <h3 className="text-xl font-bold text-foreground">All Caught Up!</h3>
+        <p className="text-sm text-muted-foreground">Come back tomorrow!</p>
       </div>
     )
   }
 
   if (finished) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <CheckCircle2 className="h-12 w-12 text-emerald-500 mb-4" />
-        <h3 className="text-lg font-semibold text-foreground">Great job!</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          You reviewed {reviewedCount} {reviewedCount === 1 ? 'card' : 'cards'} today.
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <span className="text-5xl">🎉</span>
+        <h3 className="text-xl font-bold text-foreground">Session Complete!</h3>
+        <p className="text-sm text-muted-foreground">
+          You reviewed{' '}
+          <span className="font-semibold text-foreground">
+            {reviewedCount} {reviewedCount === 1 ? 'card' : 'cards'}
+          </span>{' '}
+          today.
         </p>
         <button
           onClick={restart}
-          className="mt-4 flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="mt-2 flex items-center gap-2 rounded-full bg-violet-600 text-white px-6 py-2.5 text-sm font-medium hover:bg-violet-700 transition-colors shadow-md"
         >
           <RotateCcw className="h-4 w-4" />
           Review Again
@@ -90,6 +94,8 @@ export function ReviewSession() {
       </div>
     )
   }
+
+  const progress = ((currentIndex + 1) / totalDue) * 100
 
   return (
     <div className="flex flex-col items-center space-y-6 py-8 px-4">
@@ -101,59 +107,89 @@ export function ReviewSession() {
           </span>
           <span>{reviewedCount} reviewed</span>
         </div>
-        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-primary rounded-full transition-all duration-300"
-            style={{ width: `${((currentIndex + 1) / totalDue) * 100}%` }}
+            className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-violet-500 to-indigo-600"
+            style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
-      {/* Flashcard */}
-      <div className="w-full max-w-md min-h-[200px]">
+      {/* 3D Flip Card */}
+      <div className="w-full max-w-md" style={{ perspective: '1200px' }}>
         <div
-          className={cn(
-            'relative w-full rounded-xl border-2 border-border bg-card p-6 shadow-lg transition-all duration-300',
-            showBack && 'border-primary/50'
-          )}
+          style={{
+            transformStyle: 'preserve-3d',
+            transition: 'transform 0.55s cubic-bezier(0.4,0.2,0.2,1)',
+            transform: showBack ? 'rotateY(180deg)' : 'rotateY(0deg)',
+            position: 'relative',
+            height: '280px',
+          }}
         >
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">
-              {showBack ? 'Answer' : 'Question'}
+          {/* Front face */}
+          <div
+            onClick={() => setShowBack(true)}
+            style={{ backfaceVisibility: 'hidden', position: 'absolute', inset: 0 }}
+            className="rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-xl cursor-pointer flex flex-col items-center justify-between p-8 select-none"
+          >
+            <span className="text-xs font-semibold uppercase tracking-widest text-white/60">
+              Question
+            </span>
+            <p className="text-xl font-bold text-white text-center leading-relaxed">
+              {currentNote.front_text}
             </p>
-            <p className="text-lg font-medium text-foreground leading-relaxed">
-              {showBack ? currentNote.back_text : currentNote.front_text}
+            <div className="flex items-center gap-1.5 text-white/50 text-xs">
+              <ArrowRight className="h-3.5 w-3.5" />
+              tap to flip
+            </div>
+          </div>
+
+          {/* Back face */}
+          <div
+            onClick={() => setShowBack(false)}
+            style={{
+              backfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg)',
+              position: 'absolute',
+              inset: 0,
+            }}
+            className="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-xl cursor-pointer flex flex-col items-center justify-between p-8 select-none"
+          >
+            <span className="text-xs font-semibold uppercase tracking-widest text-white/60">
+              Answer
+            </span>
+            <p className="text-lg font-medium text-white text-center leading-relaxed">
+              {currentNote.back_text}
             </p>
+            <div className="flex items-center gap-1.5 text-white/50 text-xs">
+              <RotateCcw className="h-3.5 w-3.5" />
+              tap to flip back
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Actions */}
-      {!showBack ? (
-        <button
-          onClick={() => setShowBack(true)}
-          className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          Show Answer
-          <ArrowRight className="h-4 w-4" />
-        </button>
-      ) : (
-        <div className="flex flex-wrap justify-center gap-2">
-          {QUALITY_LABELS.map((q) => (
-            <button
-              key={q.value}
-              onClick={() => handleReview(q.value)}
-              disabled={reviewKeyNote.isPending}
-              className={cn(
-                'rounded-full text-white px-5 py-2.5 text-sm font-medium transition-colors disabled:opacity-50',
-                q.color
-              )}
-            >
-              {q.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Rating buttons — only visible when back is shown */}
+      <div
+        className={cn(
+          'flex flex-wrap justify-center gap-2 transition-all duration-300',
+          showBack ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-2 pointer-events-none'
+        )}
+      >
+        {QUALITY_LABELS.map((q) => (
+          <button
+            key={q.value}
+            onClick={() => handleReview(q.value)}
+            disabled={reviewKeyNote.isPending}
+            className={cn(
+              'rounded-full text-white px-5 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 shadow-md',
+              q.color
+            )}
+          >
+            {q.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

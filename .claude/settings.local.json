@@ -6,7 +6,11 @@
       "Bash(npm install *)",
       "Bash(npm run *)",
       "Bash(npx vite *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const p = require\\('./node_modules/@types/react/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node -e \"const ts = require\\('./node_modules/typescript'\\); const src = require\\('fs'\\).readFileSync\\('./node_modules/@types/react/index.d.ts','utf8'\\); const m = src.match\\(/onSubmit.*?;/\\); console.log\\(m && m[0]\\)\")",
+      "Bash(node -e \"const src = require\\('fs'\\).readFileSync\\('./node_modules/@types/react/index.d.ts','utf8'\\); const m = src.match\\(/type SubmitEventHandler[^;]+;/\\); console.log\\(m && m[0]\\)\")",
+      "Bash(node -e \"const src = require\\('fs'\\).readFileSync\\('./node_modules/@types/react/index.d.ts','utf8'\\); const m = src.match\\(/type EventHandler[^;]+;/\\); console.log\\(m && m[0]\\)\")"
     ]
   }
 }

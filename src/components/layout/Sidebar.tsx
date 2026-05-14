@@ -3,7 +3,8 @@ import {
   LayoutDashboard, CalendarDays, Timer, BookOpen, FileText,
   Layers, FolderOpen, ClipboardList, Newspaper, BarChart2,
   Sparkles, Settings, GraduationCap, X, Target, HelpCircle,
-  CalendarCheck2, BookMarked, Library
+  CalendarCheck2, BookMarked, Library, Trophy, TableProperties,
+  RotateCcw, ListChecks
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -16,15 +17,18 @@ const sections = [
     label: 'Overview',
     items: [
       { to: '/',          icon: LayoutDashboard, label: 'Dashboard'   },
-      { to: '/analytics', icon: BarChart2,        label: 'Analytics'   },
-      { to: '/goals',     icon: Target,            label: 'Goals'       },
+      { to: '/analytics',    icon: BarChart2,         label: 'Analytics'    },
+      { to: '/goals',        icon: Target,            label: 'Goals'        },
+      { to: '/achievements', icon: Trophy,            label: 'Achievements' },
+      { to: '/habits',       icon: ListChecks,        label: 'Habits'       },
     ],
   },
   {
     label: 'Plan',
     items: [
-      { to: '/plan',          icon: CalendarDays,    label: 'Planner'        },
-      { to: '/exam-calendar', icon: CalendarCheck2,  label: 'Exam Calendar'  },
+      { to: '/plan',          icon: CalendarDays,      label: 'Planner'        },
+      { to: '/timetable',     icon: TableProperties,   label: 'Timetable'      },
+      { to: '/exam-calendar', icon: CalendarCheck2,    label: 'Exam Calendar'  },
       { to: '/current-affairs', icon: Newspaper,     label: 'Current Affairs'},
     ],
   },
@@ -32,6 +36,7 @@ const sections = [
     label: 'Study',
     items: [
       { to: '/syllabus',   icon: BookOpen,   label: 'Syllabus'    },
+      { to: '/revision',   icon: RotateCcw,  label: 'Revision'    },
       { to: '/pomodoro',   icon: Timer,      label: 'Pomodoro'    },
       { to: '/notes',      icon: FileText,   label: 'Notes'       },
       { to: '/key-notes',  icon: Layers,     label: 'Flashcards'  },

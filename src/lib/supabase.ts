@@ -14,3 +14,13 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     detectSessionInUrl: true,
   },
 })
+
+// Admin client — only available when service role key is configured.
+// Used solely for the access-key login flow.
+const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string | undefined
+
+export const supabaseAdmin = serviceRoleKey
+  ? createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : null

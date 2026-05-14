@@ -1,15 +1,31 @@
 import { useState, useEffect } from 'react'
-import { User, Bell, Palette, Shield, LogOut } from 'lucide-react'
+import { User, Bell, Palette, Shield, LogOut, Sparkles, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useThemeStore, applyTheme } from '../store/themeStore'
 import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
 import { cn } from '../lib/utils'
 
+const OPENROUTER_KEY = 'prep-openrouter-api-key'
+
 export function SettingsPage() {
   const { signOut, session } = useAuthStore()
   const { theme, setTheme } = useThemeStore()
-  const [tab, setTab] = useState<'profile' | 'appearance' | 'notifications' | 'account'>('profile')
+  const [tab, setTab] = useState<'profile' | 'appearance' | 'notifications' | 'ai' | 'account'>('profile')
+
+  // AI API key state
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(OPENROUTER_KEY) || '')
+  const [showKey, setShowKey] = useState(false)
+
+  function saveApiKey() {
+    if (apiKey.trim()) {
+      localStorage.setItem(OPENROUTER_KEY, apiKey.trim())
+      toast.success('API key saved')
+    } else {
+      localStorage.removeItem(OPENROUTER_KEY)
+      toast.success('API key removed')
+    }
+  }
 
   // Profile state
   const [displayName, setDisplayName] = useState('')
@@ -48,10 +64,11 @@ export function SettingsPage() {
   }
 
   const tabs = [
-    { id: 'profile' as const,       label: 'Profile',       icon: User    },
-    { id: 'appearance' as const,    label: 'Appearance',    icon: Palette },
-    { id: 'notifications' as const, label: 'Notifications', icon: Bell    },
-    { id: 'account' as const,       label: 'Account',       icon: Shield  },
+    { id: 'profile' as const,       label: 'Profile',       icon: User     },
+    { id: 'appearance' as const,    label: 'Appearance',    icon: Palette  },
+    { id: 'notifications' as const, label: 'Notifications', icon: Bell     },
+    { id: 'ai' as const,            label: 'AI',            icon: Sparkles },
+    { id: 'account' as const,       label: 'Account',       icon: Shield   },
   ]
 
   const inputCls =
@@ -207,6 +224,59 @@ export function SettingsPage() {
                   </div>
                 </label>
               </div>
+            </div>
+          )}
+
+          {tab === 'ai' && (
+            <div className="max-w-md space-y-4">
+              <h2 className="text-lg font-semibold text-foreground">AI Assistant</h2>
+              <p className="text-xs text-muted-foreground">
+                The AI Assistant uses OpenRouter to access multiple AI models. Get your free API key at{' '}
+                <span className="text-primary">openrouter.ai</span>.
+              </p>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">OpenRouter API Key</label>
+                <div className="relative mt-1">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="sk-or-..."
+                    className={inputCls + ' pr-10'}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Stored locally in your browser. Never sent to our servers.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={saveApiKey}
+                  className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+                >
+                  Save Key
+                </button>
+                {apiKey && (
+                  <button
+                    onClick={() => { setApiKey(''); localStorage.removeItem(OPENROUTER_KEY); toast.success('API key removed') }}
+                    className="rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              {localStorage.getItem(OPENROUTER_KEY) && (
+                <div className="rounded-md bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+                  API key is saved and active
+                </div>
+              )}
             </div>
           )}
 
