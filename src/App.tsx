@@ -15,6 +15,8 @@ import { TestsPage } from './pages/TestsPage'
 import { CurrentAffairsPage } from './pages/CurrentAffairsPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { PYQPage } from './pages/PYQPage'
+import { MainsAnswerPage } from './pages/MainsAnswerPage'
 import { useEffect, useState } from 'react'
 import { applyTheme, useThemeStore } from './store/themeStore'
 import { supabase } from './lib/supabase'
@@ -86,6 +88,8 @@ export default function App() {
           <Route path="/key-notes" element={<KeyNotesPage />} />
           <Route path="/resources" element={<ResourcesPage />} />
           <Route path="/tests" element={<TestsPage />} />
+          <Route path="/pyq" element={<PYQPage />} />
+          <Route path="/mains-answers" element={<MainsAnswerPage />} />
           <Route path="/current-affairs" element={<CurrentAffairsPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/ai" element={<div className="text-muted-foreground">AI Assistant — Coming in Phase 13</div>} />
