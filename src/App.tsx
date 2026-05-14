@@ -26,6 +26,8 @@ import { AchievementsPage } from './pages/AchievementsPage'
 import { TimetablePage } from './pages/TimetablePage'
 import { RevisionPage } from './pages/RevisionPage'
 import { HabitsPage } from './pages/HabitsPage'
+import { FeaturesPage } from './pages/FeaturesPage'
+import { GuidePage } from './pages/GuidePage'
 import { useEffect } from 'react'
 import { applyTheme, useThemeStore } from './store/themeStore'
 
@@ -50,6 +52,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/features" element={<FeaturesPage />} />
+          <Route path="/guide" element={<GuidePage />} />
           <Route path="*" element={<AuthPage />} />
         </Routes>
       </BrowserRouter>
@@ -60,6 +64,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/guide" element={<GuidePage />} />
         <Route element={<AppShell />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/plan" element={<PlannerPage />} />
