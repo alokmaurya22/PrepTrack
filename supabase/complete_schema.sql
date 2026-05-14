@@ -1,7 +1,8 @@
 -- ============================================================
 -- PrepTrack — Complete Database Schema (Supabase Postgres)
--- Version: 2.0
+-- Version: 3.0 — Generic (any exam, not UPSC-specific)
 -- Instructions: Paste entire file into Supabase SQL Editor > Run
+-- For existing DBs: run supabase/migration_generic.sql instead
 -- ============================================================
 
 -- ============================================================
@@ -26,25 +27,25 @@ $$ LANGUAGE plpgsql;
 -- 3. LOOKUP TABLES
 -- ============================================================
 
--- Optional Subjects (48 UPSC optionals)
+-- Subjects (system defaults visible to all; user_id != NULL = user-created, visible only to owner)
+-- Works for any exam: UPSC, GATE, CAT, NEET, SSC, Bank PO, JEE, State PSC, etc.
 CREATE TABLE IF NOT EXISTS public.optional_subjects (
   id            SERIAL PRIMARY KEY,
+  user_id       UUID REFERENCES auth.users(id) ON DELETE CASCADE,  -- NULL = system/global
   code          TEXT NOT NULL UNIQUE,
   name          TEXT NOT NULL,
-  category      TEXT NOT NULL CHECK (category IN ('science','social_science','engineering','literature','other')),
+  category      TEXT NOT NULL DEFAULT 'other',   -- free text, no check constraint
   is_literature BOOLEAN NOT NULL DEFAULT FALSE,
   language_name TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Exam Languages (22 scheduled + English = 23)
-CREATE TABLE IF NOT EXISTS public.exam_languages (
-  id         SERIAL PRIMARY KEY,
-  code       TEXT NOT NULL UNIQUE,
-  name       TEXT NOT NULL,
-  script     TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+ALTER TABLE public.optional_subjects ENABLE ROW LEVEL SECURITY;
+-- System subjects (user_id IS NULL) are readable by everyone including anon
+CREATE POLICY "subjects_select"      ON public.optional_subjects FOR SELECT USING (user_id IS NULL OR auth.uid() = user_id);
+CREATE POLICY "subjects_insert_own"  ON public.optional_subjects FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "subjects_update_own"  ON public.optional_subjects FOR UPDATE  USING (auth.uid() = user_id);
+CREATE POLICY "subjects_delete_own"  ON public.optional_subjects FOR DELETE  USING (auth.uid() = user_id);
 
 -- ============================================================
 -- 4. SYLLABUS NODES (hierarchical tree)
@@ -57,10 +58,9 @@ CREATE TABLE IF NOT EXISTS public.syllabus_nodes (
   title               TEXT NOT NULL,
   description         TEXT,
   default_hours       NUMERIC(5,2) DEFAULT 2.0,
-  stage               TEXT CHECK (stage IN ('prelims','mains','interview')),
+  stage               TEXT,   -- free text: 'Paper 1', 'Phase 1', 'Module A', etc.
   paper               TEXT,
   optional_subject_id INTEGER REFERENCES public.optional_subjects(id),
-  language_id         INTEGER REFERENCES public.exam_languages(id),
   is_leaf             BOOLEAN NOT NULL DEFAULT FALSE,
   sort_order          INTEGER NOT NULL DEFAULT 0,
   metadata            JSONB DEFAULT '{}',
@@ -83,16 +83,16 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   user_id                    UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name                  TEXT,
   avatar_url                 TEXT,
+  target_exam_name           TEXT,                                  -- 'UPSC CSE', 'GATE CS', 'CAT', 'NEET', etc.
   exam_attempt_date          DATE,
   optional_subject_id        INTEGER REFERENCES public.optional_subjects(id),
-  exam_medium_language_id    INTEGER REFERENCES public.exam_languages(id),
+  exam_medium                TEXT,                                  -- free text, e.g. 'Hindi', 'English'
   daily_target_hours         NUMERIC(4,1) NOT NULL DEFAULT 8.0 CHECK (daily_target_hours BETWEEN 4 AND 14),
-  working_hours_start        TIME NOT NULL DEFAULT '06:00:00',
-  working_hours_end          TIME NOT NULL DEFAULT '22:00:00',
+  working_hours_start        TIME NOT NULL DEFAULT '06:00',
+  working_hours_end          TIME NOT NULL DEFAULT '22:00',
   timezone                   TEXT NOT NULL DEFAULT 'Asia/Kolkata',
   theme_preference           TEXT NOT NULL DEFAULT 'auto' CHECK (theme_preference IN ('light','dark','auto')),
-  onboarding_completed       BOOLEAN NOT NULL DEFAULT FALSE,
-  onboarding_step            INTEGER NOT NULL DEFAULT 0,
+  onboarding_completed       BOOLEAN NOT NULL DEFAULT TRUE,         -- TRUE by default (no onboarding wizard)
   familiarity_ratings        JSONB DEFAULT '{}',
   notification_prefs         JSONB DEFAULT '{"morning_plan":true,"eod_reflection":true,"revision_due":true,"test_upcoming":true,"slip_alert":true,"weekly_report":true}',
   push_subscription          JSONB,
@@ -110,8 +110,8 @@ CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE USING (auth.ui
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (user_id, full_name, avatar_url)
-  VALUES (NEW.id, NEW.raw_user_meta_data ->> 'full_name', NEW.raw_user_meta_data ->> 'avatar_url')
+  INSERT INTO public.profiles (user_id, full_name, avatar_url, onboarding_completed)
+  VALUES (NEW.id, NEW.raw_user_meta_data ->> 'full_name', NEW.raw_user_meta_data ->> 'avatar_url', TRUE)
   ON CONFLICT (user_id) DO NOTHING;
   RETURN NEW;
 END;
@@ -329,7 +329,7 @@ CREATE TABLE IF NOT EXISTS public.tests (
   name              TEXT NOT NULL,
   date              DATE NOT NULL,
   source            TEXT,
-  type              TEXT NOT NULL DEFAULT 'other' CHECK (type IN ('prelims','mains','sectional','full_length','pyq','other')),
+  type              TEXT NOT NULL DEFAULT 'other' CHECK (type IN ('mock','sectional','full_length','previous_year','practice','other')),
   total_marks       INTEGER NOT NULL DEFAULT 100,
   scored_marks      INTEGER NOT NULL DEFAULT 0,
   time_taken_minutes INTEGER,
@@ -366,8 +366,10 @@ CREATE POLICY "mistakes_all_own" ON public.test_mistakes USING (auth.uid() = use
 CREATE TABLE IF NOT EXISTS public.pyq_questions (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id          UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  exam_name        TEXT,                                            -- 'UPSC CSE', 'GATE CS', 'CAT', etc.
   year             INTEGER NOT NULL,
   paper            TEXT NOT NULL,
+  subject          TEXT,                                            -- 'Polity', 'Maths', 'Verbal', etc.
   question_number  INTEGER,
   question_text    TEXT,
   status           TEXT NOT NULL DEFAULT 'not_attempted' CHECK (status IN ('not_attempted','correct','wrong','skipped')),
@@ -390,11 +392,13 @@ CREATE TABLE IF NOT EXISTS public.mains_answers (
   answer_image_url TEXT,
   answer_text      TEXT,
   syllabus_node_id UUID REFERENCES public.syllabus_nodes(id) ON DELETE SET NULL,
-  structure_rating INTEGER CHECK (structure_rating BETWEEN 1 AND 5),
-  content_rating   INTEGER CHECK (content_rating BETWEEN 1 AND 5),
-  diagram_rating   INTEGER CHECK (diagram_rating BETWEEN 1 AND 5),
+  exam_section      TEXT,                                           -- e.g. 'GS Paper 3', 'Section B'
+  structure_rating  INTEGER CHECK (structure_rating BETWEEN 1 AND 5),
+  content_rating    INTEGER CHECK (content_rating BETWEEN 1 AND 5),
+  diagram_rating    INTEGER CHECK (diagram_rating BETWEEN 1 AND 5),
   conclusion_rating INTEGER CHECK (conclusion_rating BETWEEN 1 AND 5),
-  review_notes     TEXT,
+  rating_labels     JSONB DEFAULT '{"structure":"Structure","content":"Content","diagram":"Diagram","conclusion":"Conclusion"}',
+  review_notes      TEXT,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -431,7 +435,7 @@ CREATE TABLE IF NOT EXISTS public.roadmap_phases (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
-  phase_type  TEXT NOT NULL CHECK (phase_type IN ('foundation','consolidation','revision_1','revision_2','test_series','final_60','custom')),
+  phase_type  TEXT NOT NULL CHECK (phase_type IN ('foundation','consolidation','revision_1','revision_2','test_series','final_sprint','custom')),
   start_date  DATE NOT NULL,
   end_date    DATE NOT NULL,
   description TEXT,
@@ -481,7 +485,11 @@ CREATE POLICY "notifications_all_own" ON public.notifications USING (auth.uid() 
 -- COMMIT;
 
 -- ============================================================
--- 19. SEED DATA: Optional Subjects (48 UPSC optionals)
+-- 19. SEED DATA: Default Subjects (system-level, user_id = NULL)
+--     These are pre-loaded as global defaults. Students can add
+--     their own subjects on top of these via the UI.
+--     UPSC optionals are included; they're also valid subject names
+--     for many other Indian competitive exams.
 -- ============================================================
 INSERT INTO public.optional_subjects (code, name, category, is_literature) VALUES
 ('opt_agri',       'Agriculture',                    'science',           FALSE),
@@ -538,34 +546,7 @@ INSERT INTO public.optional_subjects (code, name, category, is_literature, langu
 ON CONFLICT (code) DO NOTHING;
 
 -- ============================================================
--- 20. SEED DATA: Exam Languages (22 scheduled + English)
--- ============================================================
-INSERT INTO public.exam_languages (code, name, script) VALUES
-('en',    'English',           'Latin'),
-('hi',    'Hindi',             'Devanagari'),
-('as',    'Assamese',          'Assamese'),
-('bn',    'Bengali',           'Bengali'),
-('brx',   'Bodo',              'Devanagari'),
-('doi',   'Dogri',             'Devanagari'),
-('gu',    'Gujarati',          'Gujarati'),
-('kn',    'Kannada',           'Kannada'),
-('ks',    'Kashmiri',          'Arabic/Persian'),
-('kok',   'Konkani',           'Devanagari'),
-('mai',   'Maithili',          'Devanagari'),
-('ml',    'Malayalam',         'Malayalam'),
-('mni',   'Manipuri (Meitei)', 'Meitei Mayek'),
-('mr',    'Marathi',           'Devanagari'),
-('ne',    'Nepali',            'Devanagari'),
-('or',    'Odia',              'Odia'),
-('pa',    'Punjabi',           'Gurmukhi'),
-('sa',    'Sanskrit',          'Devanagari'),
-('sat',   'Santhali',          'Ol Chiki'),
-('sd',    'Sindhi',            'Arabic/Persian'),
-('ta',    'Tamil',             'Tamil'),
-('te',    'Telugu',            'Telugu'),
-('ur',    'Urdu',              'Arabic/Persian')
-ON CONFLICT (code) DO NOTHING;
-
--- ============================================================
 -- DONE! Schema is ready.
+-- exam_languages table removed — exam medium is now a free-text
+-- field in profiles (target_exam_name, exam_medium).
 -- ============================================================

@@ -204,11 +204,11 @@ export function AuthPage() {
           <span className="text-2xl font-bold tracking-tight">PrepTrack</span>
         </div>
         <h1 className="text-3xl font-bold text-foreground leading-tight">
-          Your UPSC preparation,<br />organized in one place.
+          Your exam preparation,<br />organized in one place.
         </h1>
         <p className="text-muted-foreground text-base leading-relaxed">
           Track your syllabus, plan daily study, log tests, manage notes,
-          and get AI-assisted insights — all built for the seriousness of CSE.
+          and get AI-assisted insights — built for serious exam preparation.
         </p>
         <div className="grid grid-cols-2 gap-4 mt-4">
           {['Syllabus Tracker', 'Spaced Repetition', 'Test Analytics', 'AI Assistant'].map(f => (
@@ -227,7 +227,7 @@ export function AuthPage() {
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </h2>
             <p className="text-muted-foreground text-sm">
-              {mode === 'login' ? 'Sign in to continue your UPSC journey' : 'Start tracking your preparation today'}
+              {mode === 'login' ? 'Sign in to continue your preparation' : 'Start tracking your preparation today'}
             </p>
           </div>
 
