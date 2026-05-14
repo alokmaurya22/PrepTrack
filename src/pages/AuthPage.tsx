@@ -4,8 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import { toast } from 'sonner'
-import { GraduationCap, KeyRound, Eye, EyeOff, ArrowLeft } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { GraduationCap, KeyRound, Eye, EyeOff, ArrowLeft, BookOpen, Sparkles } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -323,6 +323,23 @@ export function AuthPage() {
             </div>
           ))}
         </div>
+        <div className="flex items-center gap-4 mt-6">
+          <Link
+            to="/features"
+            className="flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
+          >
+            <Sparkles className="h-4 w-4" />
+            Explore Features
+          </Link>
+          <span className="text-border">·</span>
+          <Link
+            to="/guide"
+            className="flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
+          >
+            <BookOpen className="h-4 w-4" />
+            User Guide
+          </Link>
+        </div>
       </div>
 
       {/* Right panel — form */}
@@ -374,6 +391,25 @@ export function AuthPage() {
               )}
             </>
           )}
+
+          {/* Footer links */}
+          <div className="flex items-center justify-center gap-4 pt-2 border-t border-border">
+            <Link
+              to="/features"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Explore Features
+            </Link>
+            <span className="text-muted-foreground/40 text-xs">·</span>
+            <Link
+              to="/guide"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              User Guide
+            </Link>
+          </div>
         </div>
       </div>
     </div>

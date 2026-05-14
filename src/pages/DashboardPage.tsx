@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, BookOpen, Flame,
   CalendarDays, Timer, FileText, BarChart2,
   Target, Newspaper, HelpCircle, CalendarCheck2,
-  ArrowRight, Circle,
+  ArrowRight, Circle, Sparkles, Map,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useTasksForDate } from '../lib/queries/tasks'
@@ -211,6 +211,36 @@ export function DashboardPage() {
               </Link>
             ))}
           </div>
+        </div>
+
+        {/* Features & Guide links */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Link
+            to="/features"
+            className="flex-1 flex items-center gap-3 p-4 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors group"
+          >
+            <div className="p-2 rounded-lg bg-violet-500/10">
+              <Sparkles className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Explore Features</p>
+              <p className="text-xs text-muted-foreground">See everything PrepTrack can do</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors flex-shrink-0" />
+          </Link>
+          <Link
+            to="/guide"
+            className="flex-1 flex items-center gap-3 p-4 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors group"
+          >
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <Map className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">User Guide</p>
+              <p className="text-xs text-muted-foreground">Step-by-step guide for all modules</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-shrink-0" />
+          </Link>
         </div>
       </div>
     </div>
