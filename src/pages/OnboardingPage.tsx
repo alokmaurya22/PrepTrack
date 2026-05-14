@@ -37,16 +37,17 @@ export function OnboardingPage() {
     if (!session) return
     setSaving(true)
     try {
-      const { error: profileError } = await supabase.from('profiles').update({
-        exam_attempt_date: data.examDate,
-        optional_subject_id: data.optionalSubjectId,
-        exam_medium_language_id: data.examMediumId,
-        daily_target_hours: data.dailyTargetHours,
-        working_hours_start: data.workStart,
-        working_hours_end: data.workEnd,
-        familiarity_ratings: data.familiarityRatings,
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        user_id: session.user.id,
+        exam_attempt_date: data.examDate as string | undefined,
+        optional_subject_id: data.optionalSubjectId as number | undefined,
+        exam_medium_language_id: data.examMediumId as number | undefined,
+        daily_target_hours: (data.dailyTargetHours as number) || 8,
+        working_hours_start: (data.workStart as string) || '06:00:00',
+        working_hours_end: (data.workEnd as string) || '22:00:00',
+        familiarity_ratings: data.familiarityRatings as Record<string, number> | undefined,
         onboarding_completed: true,
-      }).eq('user_id', session.user.id)
+      }, { onConflict: 'user_id' })
 
       if (profileError) {
         toast.error('Failed to save profile. Please try again.')
