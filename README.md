@@ -1,73 +1,57 @@
-# React + TypeScript + Vite
+# PrepTrack
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A comprehensive web application for UPSC Civil Services aspirants to plan, track, and manage their entire preparation journey in one place.
 
-Currently, two official plugins are available:
+## What it does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+PrepTrack replaces the scattered tools (paper diaries, Google Drive, Excel sheets, sticky notes) that aspirants juggle. It provides:
 
-## React Compiler
+- **Syllabus Tracker** — Map the full UPSC syllabus, mark topics as studied/revised
+- **Study Planner** — Daily, weekly, and monthly planning with calendar view
+- **Notes & Resources** — Rich text notes with TipTap editor, PDF viewer, resource storage
+- **Test Tracker** — Log Prelims/Mains mock test scores and analyze performance
+- **Current Affairs** — Track current affairs with tagging and revision cycles
+- **Progress Dashboard** — Data-driven charts showing whether you're on track
+- **PWA Support** — Installable as a desktop/mobile app, works offline
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the ESLint configuration
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, TypeScript, Vite |
+| Styling | Tailwind CSS, shadcn/ui components |
+| State | Zustand (global), TanStack Query (server) |
+| Forms | React Hook Form + Zod |
+| Rich Text | TipTap editor |
+| Backend | Supabase (Postgres, Auth, Storage) |
+| Charts | Recharts |
+| Routing | React Router v6 |
+| Error Tracking | Sentry |
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Getting Started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Copy `.env.example` to `.env` and fill in your Supabase credentials before running.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Build
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build      # production build
+npm run preview    # preview production build locally
+```
+
+## Project Structure
+
+```
+src/
+├── components/    # Reusable UI components
+├── pages/         # Route-level page components
+├── hooks/         # Custom React hooks
+├── store/         # Zustand stores
+├── lib/           # Supabase client, utilities
+└── styles/        # Global styles
 ```
