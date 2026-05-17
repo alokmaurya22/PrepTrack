@@ -2,11 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import {
-  GraduationCap, BookOpen, CalendarDays, Timer, Sparkles, BarChart2,
+  BookOpen, CalendarDays, Timer, Sparkles, BarChart2,
   Newspaper, List, Target, Flame, HelpCircle, CalendarCheck2,
   Star, Layers, ClipboardList, Repeat, BookMarked, Trophy,
   ArrowRight, Menu, X, Lightbulb, CheckCircle2, AlertCircle,
 } from 'lucide-react'
+
+function LogoIcon({ className }: { className?: string }) {
+  return <img src="/preptrack_logo.png" alt="PrepTrack" className={className?.replace(/text-\S+/g, '').trim() + ' rounded-sm'} />
+}
 import { cn } from '../lib/utils'
 
 // ─── Section definitions ──────────────────────────────────────────────────────
@@ -27,7 +31,7 @@ interface GuideSection {
 const SECTIONS: GuideSection[] = [
   {
     id: 'getting-started',
-    icon: GraduationCap,
+    icon: LogoIcon,
     title: 'Getting Started',
     color: 'violet',
     tagline: 'Create your account and set up your profile in under 2 minutes.',
@@ -437,7 +441,7 @@ export function GuidePage() {
               {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
             <Link to="/" className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-primary" />
+              <img src="/preptrack_logo.png" alt="PrepTrack" className="h-5 w-5 rounded-md" />
               <span className="font-bold text-base tracking-tight">PrepTrack</span>
             </Link>
             <span className="text-muted-foreground hidden sm:block">/ User Guide</span>

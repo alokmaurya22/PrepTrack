@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import {
-  GraduationCap, BookOpen, CalendarDays, Timer, Sparkles, BarChart2,
+  BookOpen, CalendarDays, Timer, Sparkles, BarChart2,
   FileText, Newspaper, List, Target, Flame, HelpCircle, CalendarCheck2,
   Star, Brain, Layers, ClipboardList, Repeat, BookMarked, Trophy,
   ArrowRight, CheckCircle2, Zap, Clock,
@@ -92,7 +92,7 @@ export function FeaturesPage() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <GraduationCap className="h-6 w-6 text-primary" />
+            <img src="/preptrack_logo.png" alt="PrepTrack" className="h-6 w-6 rounded-md" />
             <span className="font-bold text-lg tracking-tight">PrepTrack</span>
           </Link>
           <nav className="flex items-center gap-4">
@@ -245,7 +245,7 @@ export function FeaturesPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <GraduationCap className="h-4 w-4 text-primary" />
+          <img src="/preptrack_logo.png" alt="PrepTrack" className="h-4 w-4 rounded-sm" />
           <span className="font-semibold text-foreground">PrepTrack</span>
         </div>
         <div className="flex items-center justify-center gap-4">

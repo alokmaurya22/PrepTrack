@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, CalendarDays, Timer, BookOpen, FileText,
   Layers, FolderOpen, ClipboardList, Newspaper, BarChart2,
-  Sparkles, Settings, GraduationCap, X, Target, HelpCircle,
+  Sparkles, Settings, X, Target, HelpCircle,
   CalendarCheck2, BookMarked, Library, Trophy, TableProperties,
   RotateCcw, ListChecks
 } from 'lucide-react'
@@ -77,8 +77,8 @@ export function Sidebar({ onClose }: SidebarProps) {
   return (
     <aside className="w-56 flex-shrink-0 border-r border-border bg-card flex flex-col h-full">
       {/* Logo */}
-      <div className="h-14 flex items-center px-4 border-b border-border gap-2">
-        <GraduationCap className="h-5 w-5 text-primary flex-shrink-0" />
+      <div className="h-14 flex items-center px-4 border-b border-border gap-2.5">
+        <img src="/preptrack_logo.png" alt="PrepTrack" className="h-8 w-8 rounded-lg flex-shrink-0" />
         <span className="font-semibold tracking-tight text-foreground">PrepTrack</span>
         {onClose && (
           <button onClick={onClose} className="ml-auto md:hidden text-muted-foreground hover:text-foreground">

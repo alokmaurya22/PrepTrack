@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase, supabaseAdmin } from '../lib/supabase'
 import { toast } from 'sonner'
-import { GraduationCap, KeyRound, Eye, EyeOff, ArrowLeft, BookOpen, Sparkles } from 'lucide-react'
+import { KeyRound, Eye, EyeOff, ArrowLeft, BookOpen, Sparkles } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 
 const loginSchema = z.object({
@@ -306,7 +306,7 @@ export function AuthPage() {
       {/* Left panel — branding */}
       <div className="hidden lg:flex w-1/2 bg-primary/5 flex-col justify-center px-16 gap-6 border-r border-border">
         <div className="flex items-center gap-3">
-          <GraduationCap className="h-8 w-8 text-primary" />
+          <img src="/preptrack_logo.png" alt="PrepTrack" className="h-8 w-8 rounded-xl" />
           <span className="text-2xl font-bold tracking-tight">PrepTrack</span>
         </div>
         <h1 className="text-3xl font-bold text-foreground leading-tight">

@@ -49,6 +49,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <Menu className="h-5 w-5" />
         </button>
 
+        {/* Logo — visible on mobile only (sidebar hidden on mobile) */}
+        <div className="md:hidden flex items-center gap-2 flex-shrink-0">
+          <img src="/preptrack_logo.png" alt="PrepTrack" className="h-7 w-7 rounded-md" />
+          <span className="font-semibold text-sm text-foreground">PrepTrack</span>
+        </div>
+
         {/* Search button — opens command palette */}
         <button
           onClick={() => setSearchOpen(true)}

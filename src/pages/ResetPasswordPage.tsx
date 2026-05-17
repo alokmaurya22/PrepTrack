@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
-import { GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const requestSchema = z.object({
@@ -28,7 +27,7 @@ export function ResetPasswordPage() {
       <div className="min-h-screen bg-background flex items-center justify-center p-8">
         <div className="w-full max-w-md text-center space-y-4">
           <div className="flex items-center justify-center gap-2">
-            <GraduationCap className="h-6 w-6 text-primary" />
+            <img src="/preptrack_logo.png" alt="PrepTrack" className="h-6 w-6 rounded-lg" />
             <span className="text-xl font-bold tracking-tight">PrepTrack</span>
           </div>
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
@@ -80,7 +79,7 @@ function RequestForm({ onSent }: { onSent: () => void }) {
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-1">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <GraduationCap className="h-6 w-6 text-primary" />
+            <img src="/preptrack_logo.png" alt="PrepTrack" className="h-6 w-6 rounded-lg" />
             <span className="text-xl font-bold tracking-tight">PrepTrack</span>
           </div>
           <h2 className="text-2xl font-bold text-foreground">Reset your password</h2>
