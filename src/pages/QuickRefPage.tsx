@@ -333,46 +333,55 @@ export function QuickRefPage() {
             )}
           </div>
 
-          {/* Form panel */}
-          {showForm && (
-            <div className="w-80 flex-shrink-0 border-l border-border overflow-y-auto p-4 space-y-3">
-              <div className="flex items-center justify-between mb-1">
-                <h2 className="text-sm font-semibold text-foreground">{editingId ? 'Edit Card' : 'New Card'}</h2>
-                <button onClick={() => { setShowForm(false); setEditingId(null) }} className="text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+        </div>
+      )}
+
+      {/* Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="absolute inset-0" onClick={() => { setShowForm(false); setEditingId(null) }} />
+          <div className="relative w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh]">
+            <div className="flex justify-center pt-3 pb-1 sm:hidden">
+              <div className="w-10 h-1 rounded-full bg-border" />
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0">
+              <h2 className="text-sm font-semibold text-foreground">{editingId ? 'Edit Card' : 'New Card'}</h2>
+              <button onClick={() => { setShowForm(false); setEditingId(null) }} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Title *</label>
                 <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
                   placeholder="e.g. Fundamental Rights, Newton's Laws, Quadratic Formula"
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Subject</label>
                 <input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
                   placeholder="e.g. Polity, Maths, Physics"
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Content</label>
                 <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
                   placeholder="Formulas, key points, mnemonics, important facts…"
-                  rows={6}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none font-mono" />
+                  rows={5}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none font-mono" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Tags (comma-separated)</label>
                 <input value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))}
                   placeholder="formula, important, chapter-3"
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Card Color</label>
-                <div className="flex gap-2 mt-1">
+                <div className="flex gap-2 mt-2">
                   {CARD_COLORS.map(c => (
                     <button key={c.bg} onClick={() => setForm(p => ({ ...p, color: c.bg }))}
-                      className={cn('h-6 w-6 rounded-full border-2 transition-transform hover:scale-110',
+                      className={cn('h-7 w-7 rounded-full border-2 transition-transform hover:scale-110',
                         form.color === c.bg ? 'border-primary scale-110' : 'border-border'
                       )}
                       style={{ backgroundColor: c.bg }}
@@ -386,18 +395,18 @@ export function QuickRefPage() {
                   className="rounded accent-primary" />
                 <span className="text-sm text-foreground">Pin this card</span>
               </label>
-              <div className="flex gap-2 pt-1">
-                <button onClick={saveRef}
-                  className="flex-1 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-                  {editingId ? 'Update' : 'Save Card'}
-                </button>
-                <button onClick={() => { setShowForm(false); setEditingId(null) }}
-                  className="px-3 py-2 rounded-md border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
-                  Cancel
-                </button>
-              </div>
             </div>
-          )}
+            <div className="px-5 py-4 border-t border-border flex gap-2 flex-shrink-0">
+              <button onClick={saveRef}
+                className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
+                {editingId ? 'Update Card' : 'Save Card'}
+              </button>
+              <button onClick={() => { setShowForm(false); setEditingId(null) }}
+                className="px-4 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

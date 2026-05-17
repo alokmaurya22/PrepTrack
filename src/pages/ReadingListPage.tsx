@@ -306,95 +306,104 @@ export function ReadingListPage() {
           )}
         </div>
 
-        {/* Form */}
-        {showForm && (
-          <div className="w-80 flex-shrink-0 border-l border-border overflow-y-auto p-4 space-y-3">
-            <div className="flex items-center justify-between mb-1">
+      </div>
+
+      {/* Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+          <div className="absolute inset-0" onClick={() => { setShowForm(false); setEditingId(null) }} />
+          <div className="relative w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh]">
+            <div className="flex justify-center pt-3 pb-1 sm:hidden">
+              <div className="w-10 h-1 rounded-full bg-border" />
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0">
               <h2 className="text-sm font-semibold text-foreground">{editingId ? 'Edit Item' : 'Add to List'}</h2>
-              <button onClick={() => { setShowForm(false); setEditingId(null) }} className="text-muted-foreground hover:text-foreground">
+              <button onClick={() => { setShowForm(false); setEditingId(null) }} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Title *</label>
-              <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                placeholder="Book/article/video title"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Type</label>
-                <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value as ReadingItem['type'] }))}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="book">Book</option>
-                  <option value="article">Article</option>
-                  <option value="video">Video</option>
-                  <option value="pdf">PDF</option>
-                  <option value="podcast">Podcast</option>
-                  <option value="other">Other</option>
-                </select>
+                <label className="text-xs font-medium text-muted-foreground">Title *</label>
+                <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+                  placeholder="Book/article/video title"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Priority</label>
-                <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value as ReadingItem['priority'] }))}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Author / Creator</label>
-              <input value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))}
-                placeholder="Author or channel name"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Subject</label>
-              <input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
-                placeholder="e.g. Polity, Maths"
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            {(form.type === 'book' || form.type === 'pdf') && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Total Pages</label>
-                  <input type="number" value={form.total_pages} onChange={e => setForm(p => ({ ...p, total_pages: e.target.value }))}
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <label className="text-xs font-medium text-muted-foreground">Type</label>
+                  <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value as ReadingItem['type'] }))}
+                    className="mt-1 w-full rounded-md border border-input bg-background px-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                    <option value="book">Book</option>
+                    <option value="article">Article</option>
+                    <option value="video">Video</option>
+                    <option value="pdf">PDF</option>
+                    <option value="podcast">Podcast</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Pages Read</label>
-                  <input type="number" value={form.pages_read} onChange={e => setForm(p => ({ ...p, pages_read: e.target.value }))}
-                    className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <label className="text-xs font-medium text-muted-foreground">Priority</label>
+                  <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value as ReadingItem['priority'] }))}
+                    className="mt-1 w-full rounded-md border border-input bg-background px-2 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
                 </div>
               </div>
-            )}
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Link (optional)</label>
-              <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))}
-                placeholder="https://..."
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Author / Creator</label>
+                <input value={form.author} onChange={e => setForm(p => ({ ...p, author: e.target.value }))}
+                  placeholder="Author or channel name"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Subject</label>
+                <input value={form.subject} onChange={e => setForm(p => ({ ...p, subject: e.target.value }))}
+                  placeholder="e.g. Polity, Maths"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              {(form.type === 'book' || form.type === 'pdf') && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Total Pages</label>
+                    <input type="number" value={form.total_pages} onChange={e => setForm(p => ({ ...p, total_pages: e.target.value }))}
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">Pages Read</label>
+                    <input type="number" value={form.pages_read} onChange={e => setForm(p => ({ ...p, pages_read: e.target.value }))}
+                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Link (optional)</label>
+                <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))}
+                  placeholder="https://..."
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Notes</label>
+                <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                  rows={2} placeholder="Why you want to read this, key chapters, etc."
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Notes</label>
-              <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-                rows={2} placeholder="Why you want to read this, key chapters, etc."
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
-            </div>
-            <div className="flex gap-2 pt-1">
+            <div className="px-5 py-4 border-t border-border flex gap-2 flex-shrink-0">
               <button onClick={save}
-                className="flex-1 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
                 {editingId ? 'Update' : 'Add to List'}
               </button>
               <button onClick={() => { setShowForm(false); setEditingId(null) }}
-                className="px-3 py-2 rounded-md border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
+                className="px-4 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition-colors">
                 Cancel
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

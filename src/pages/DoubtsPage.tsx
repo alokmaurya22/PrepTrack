@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, CheckCircle2, Clock, ChevronDown, Search, X, BookOpen, Lightbulb } from 'lucide-react'
+import { Plus, CheckCircle2, Clock, ChevronDown, ChevronLeft, Search, X, BookOpen, Lightbulb } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
 import { toast } from 'sonner'
@@ -130,8 +130,11 @@ export function DoubtsPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: List */}
-        <div className="w-full md:w-80 lg:w-96 flex-shrink-0 border-r border-border flex flex-col">
+        {/* Left: List — hidden on mobile when a doubt is selected or form is open */}
+        <div className={cn(
+          'flex-shrink-0 border-r border-border flex flex-col',
+          (showForm || selected) ? 'hidden md:flex md:w-80 lg:w-96' : 'w-full md:w-80 lg:w-96'
+        )}>
           {/* Filters */}
           <div className="px-3 pt-3 pb-2 space-y-2">
             <div className="relative">
@@ -172,7 +175,7 @@ export function DoubtsPage() {
                 <p className="text-xs mt-1">Log a doubt to start tracking.</p>
               </div>
             ) : filtered.map(doubt => (
-              <button key={doubt.id} onClick={() => setSelected(doubt)}
+              <button key={doubt.id} onClick={() => { setSelected(doubt); setShowForm(false) }}
                 className={cn('w-full text-left p-3 hover:bg-muted/50 transition-colors',
                   selected?.id === doubt.id && 'bg-primary/5 border-l-2 border-primary'
                 )}>
@@ -197,8 +200,20 @@ export function DoubtsPage() {
           </div>
         </div>
 
-        {/* Right: Detail / Form */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Right: Detail / Form — hidden on mobile when nothing is selected */}
+        <div className={cn(
+          'flex-1 overflow-y-auto p-4 sm:p-6',
+          !showForm && !selected && 'hidden md:block'
+        )}>
+          {/* Back button — mobile only */}
+          {(showForm || selected) && (
+            <button
+              onClick={() => { setShowForm(false); setSelected(null) }}
+              className="md:hidden flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" /> Back to list
+            </button>
+          )}
           {showForm ? (
             <div className="max-w-lg">
               <div className="flex items-center justify-between mb-4">
