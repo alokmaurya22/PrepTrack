@@ -89,50 +89,55 @@ export function CurrentAffairsPage() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-3">
+      <div className="px-4 py-3 border-b border-border space-y-2">
+        {/* Row 1: Title + Add button */}
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">Current Affairs</h2>
-          <div className="relative">
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Entry
+          </button>
+        </div>
+        {/* Row 2: Search + Month */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search entries…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-56 pl-7 pr-2 py-1.5 text-xs border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full pl-7 pr-2 py-1.5 text-xs border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <input
             type="month"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring flex-shrink-0"
           />
-          {allSources.length > 1 && (
-            <div className="flex gap-1 flex-wrap">
-              {allSources.map((src) => (
-                <button
-                  key={src}
-                  onClick={() => setSourceFilter(src)}
-                  className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                    sourceFilter === src
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                  }`}
-                >
-                  {src === 'all' ? 'All Sources' : src}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add Entry
-        </button>
+        {/* Row 3: Source filter chips */}
+        {allSources.length > 1 && (
+          <div className="flex gap-1 flex-wrap">
+            {allSources.map((src) => (
+              <button
+                key={src}
+                onClick={() => setSourceFilter(src)}
+                className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                  sourceFilter === src
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                }`}
+              >
+                {src === 'all' ? 'All Sources' : src}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -201,7 +206,7 @@ export function CurrentAffairsPage() {
                             </div>
                             <button
                               onClick={() => deleteEntry.mutate(entry.id)}
-                              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity flex-shrink-0"
+                              className="sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity flex-shrink-0"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>

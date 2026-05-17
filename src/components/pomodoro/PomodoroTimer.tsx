@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2 } from 'lucide-react'
+import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2, Bell } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useStartSession, useEndSession } from '../../lib/queries/sessions'
 import { useTasksForDate } from '../../lib/queries/tasks'
@@ -28,6 +28,19 @@ function clamp(val: number, min: number, max: number) {
   return Math.min(max, Math.max(min, val))
 }
 
+function playFinishSound() {
+  try {
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACAf39/f4B/f3+AgH9/f3+Af39/gIB/f3+Af3+Af39/gH9/f4CAf39/gH9/f39/f39/f39/f3+Af39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/fA==')
+    audio.play().catch(() => {})
+  } catch {}
+}
+
+function showNotification(title: string, body: string) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '/pwa-192x192.png', silent: false })
+  }
+}
+
 export function PomodoroTimer() {
   const startSession = useStartSession()
   const endSession = useEndSession()
@@ -35,6 +48,9 @@ export function PomodoroTimer() {
   const [durations, setDurations] = useState<Durations>(loadDurations)
   const [showSettings, setShowSettings] = useState(false)
   const [draft, setDraft] = useState<Durations>(durations)
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'denied'
+  )
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const { data: todayTasks } = useTasksForDate(today)
@@ -48,6 +64,8 @@ export function PomodoroTimer() {
   const [sessionsCompleted, setSessionsCompleted] = useState(0)
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Wall-clock end time — set when timer starts/resumes, cleared on pause/reset
+  const endTimeRef = useRef<number | null>(null)
 
   const modeConfig = {
     focus:      { label: 'Focus',      duration: durations.focus * 60,      color: 'text-red-500'   },
@@ -66,25 +84,75 @@ export function PomodoroTimer() {
     }
   }, [])
 
+  // ── Tick using wall clock (accurate across tab switches) ──────────────────────
   useEffect(() => {
     if (timerState === 'running') {
       intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearTimer()
-            setTimerState('finished')
-            try {
-              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACAf39/f4B/f3+AgH9/f3+Af39/gIB/f3+Af3+Af39/gH9/f4CAf39/gH9/f39/f39/f3+Af39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/fA==')
-              audio.play().catch(() => {})
-            } catch {}
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+        if (!endTimeRef.current) return
+        const remaining = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000))
+        setTimeLeft(remaining)
+        if (remaining <= 0) {
+          clearTimer()
+          setTimerState('finished')
+        }
+      }, 500)
     }
     return clearTimer
   }, [timerState, clearTimer])
+
+  // ── Recalculate when page becomes visible (tab/app switch back) ──────────────
+  useEffect(() => {
+    const handler = () => {
+      if ((document.visibilityState === 'visible') && timerState === 'running' && endTimeRef.current) {
+        const remaining = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000))
+        setTimeLeft(remaining)
+        if (remaining <= 0) {
+          clearTimer()
+          setTimerState('finished')
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handler)
+    window.addEventListener('pageshow', handler)
+    return () => {
+      document.removeEventListener('visibilitychange', handler)
+      window.removeEventListener('pageshow', handler)
+    }
+  }, [timerState, clearTimer])
+
+  // ── Document title shows countdown while running ──────────────────────────────
+  useEffect(() => {
+    if (timerState === 'running' || timerState === 'paused') {
+      const m = Math.floor(timeLeft / 60)
+      const s = timeLeft % 60
+      document.title = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} — ${config.label} | PrepTrack`
+    } else {
+      document.title = 'PrepTrack'
+    }
+    return () => { document.title = 'PrepTrack' }
+  }, [timeLeft, timerState, config.label])
+
+  // ── Notify when finished ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (timerState === 'finished') {
+      playFinishSound()
+      const isFocus = mode === 'focus'
+      showNotification(
+        `${config.label} session complete!`,
+        isFocus ? 'Great work! Time for a break. 🎉' : "Break's over. Back to focus! 💪"
+      )
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerState])
+
+  // ── Controls ──────────────────────────────────────────────────────────────────
+
+  async function requestNotifPermission() {
+    if ('Notification' in window) {
+      const perm = await Notification.requestPermission()
+      setNotifPerm(perm)
+    }
+  }
 
   const start = async () => {
     if (timerState === 'idle') {
@@ -93,14 +161,27 @@ export function PomodoroTimer() {
         task_id: mode === 'focus' ? selectedTaskId || undefined : undefined,
       })
       setSessionId(session.id)
+      // Auto-request notification permission on first start
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(setNotifPerm)
+      }
     }
+    endTimeRef.current = Date.now() + timeLeft * 1000
     setTimerState('running')
   }
 
-  const pause = () => setTimerState('paused')
-  const resume = () => setTimerState('running')
+  const pause = () => {
+    endTimeRef.current = null
+    setTimerState('paused')
+  }
+
+  const resume = () => {
+    endTimeRef.current = Date.now() + timeLeft * 1000
+    setTimerState('running')
+  }
 
   const endSessionAndReset = async () => {
+    endTimeRef.current = null
     if (sessionId) await endSession.mutateAsync({ sessionId })
 
     if (mode === 'focus') {
@@ -119,6 +200,7 @@ export function PomodoroTimer() {
   }
 
   const switchMode = (newMode: typeof mode) => {
+    endTimeRef.current = null
     if (sessionId) endSession.mutate({ sessionId })
     setMode(newMode)
     setTimeLeft(modeConfig[newMode].duration)
@@ -141,6 +223,7 @@ export function PomodoroTimer() {
     setDurations(newDurations)
     setTimeLeft(newDurations[mode] * 60)
     setTimerState('idle')
+    endTimeRef.current = null
     if (sessionId) {
       endSession.mutate({ sessionId })
       setSessionId(null)
@@ -177,6 +260,17 @@ export function PomodoroTimer() {
             </button>
           ))}
         </div>
+
+        {/* Notification permission button */}
+        {'Notification' in window && notifPerm === 'default' && (
+          <button
+            onClick={requestNotifPermission}
+            title="Enable notifications when timer ends"
+            className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <Bell className="h-4 w-4" />
+          </button>
+        )}
 
         <button
           onClick={openSettings}
@@ -261,6 +355,9 @@ export function PomodoroTimer() {
             {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
           </span>
           <span className="text-xs text-muted-foreground mt-2">{config.label}</span>
+          {timerState === 'paused' && (
+            <span className="text-xs text-amber-500 mt-1 font-medium">Paused</span>
+          )}
         </div>
       </div>
 
@@ -338,9 +435,16 @@ export function PomodoroTimer() {
         </div>
       )}
 
-      {/* Session counter */}
-      <div className="text-xs text-muted-foreground">
-        {sessionsCompleted} focus session{sessionsCompleted === 1 ? '' : 's'} completed today
+      {/* Session counter + notification hint */}
+      <div className="flex flex-col items-center gap-1">
+        <div className="text-xs text-muted-foreground">
+          {sessionsCompleted} focus session{sessionsCompleted === 1 ? '' : 's'} completed today
+        </div>
+        {notifPerm === 'granted' && (
+          <div className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+            <Bell className="h-2.5 w-2.5" /> Notifications enabled
+          </div>
+        )}
       </div>
     </div>
   )

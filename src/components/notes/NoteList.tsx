@@ -136,7 +136,7 @@ export function NoteList({ selectedId, onSelect }: Props) {
                   e.stopPropagation()
                   deleteNote.mutate(note.id)
                 }}
-                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-all flex-shrink-0"
+                className="sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded hover:bg-muted text-muted-foreground hover:text-destructive transition-all flex-shrink-0"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
