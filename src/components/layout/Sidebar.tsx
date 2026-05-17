@@ -49,8 +49,7 @@ const sections = [
   {
     label: 'Practice',
     items: [
-      { to: '/tests',         icon: ClipboardList, label: 'Tests & PYQs'  },
-      { to: '/mains-answers', icon: FileText,       label: 'Answer Writing'},
+      { to: '/tests', icon: ClipboardList, label: 'Tests & PYQs' },
     ],
   },
   {

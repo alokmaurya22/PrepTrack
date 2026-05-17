@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore'
 import {
   GraduationCap, BookOpen, CalendarDays, Timer, Sparkles, BarChart2,
   Newspaper, List, Target, Flame, HelpCircle, CalendarCheck2,
-  Star, Brain, Layers, ClipboardList, Repeat, BookMarked, Trophy,
+  Star, Layers, ClipboardList, Repeat, BookMarked, Trophy,
   ArrowRight, Menu, X, Lightbulb, CheckCircle2, AlertCircle,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -224,25 +224,6 @@ const SECTIONS: GuideSection[] = [
         { text: 'The summary row shows how many years you\'ve covered per paper.' },
       ]},
       { kind: 'tip', data: { type: 'tip', text: 'Start with the last 10 years — they have the highest return on investment for pattern recognition.' }},
-    ],
-  },
-  {
-    id: 'mains-answers',
-    icon: Brain,
-    title: 'Mains Answer Writing',
-    color: 'rose',
-    tagline: 'Practice GS and essay answers with a structured self-evaluation system.',
-    blocks: [
-      { kind: 'steps', items: [
-        { text: 'Click "+ New Answer" and enter the question.' },
-        { text: 'Select the paper and the date of practice.' },
-        { text: 'Write or paste your answer in the text area.' },
-        { text: 'Rate yourself on 4 dimensions (1–5 each): Structure, Content, Diagrams, Conclusion.' },
-        { text: 'Add evaluator feedback or personal notes.' },
-        { text: 'Your average score and history are tracked across all answers.' },
-      ]},
-      { kind: 'tip', data: { type: 'tip', text: 'Use the built-in answer templates (Structure, Introduction, Body, Conclusion) by clicking the Templates button in the header.' }},
-      { kind: 'tip', data: { type: 'note', text: 'Even a quick self-rating is better than no rating. Build the habit first, then improve accuracy.' }},
     ],
   },
   {

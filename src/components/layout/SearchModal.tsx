@@ -35,7 +35,6 @@ const ALL_ITEMS: NavItem[] = [
   { label: 'Quick Ref',       to: '/quick-ref',       icon: BookMarked,      category: 'Study',   keywords: 'reference cheat sheet formulas' },
   { label: 'Reading List',    to: '/reading-list',    icon: Library,         category: 'Study',   keywords: 'books articles newspaper' },
   { label: 'Tests & PYQs',    to: '/tests',           icon: ClipboardList,   category: 'Practice',keywords: 'previous year questions mock test exam pyq' },
-  { label: 'Answer Writing',  to: '/mains-answers',   icon: FileText,        category: 'Practice',keywords: 'mains upsc writing' },
   { label: 'Doubt Journal',   to: '/doubts',          icon: HelpCircle,      category: 'Support', keywords: 'questions help problems' },
   { label: 'Resources',       to: '/resources',       icon: FolderOpen,      category: 'Support', keywords: 'books materials pdf links' },
   { label: 'AI Assistant',    to: '/ai',              icon: Sparkles,        category: 'Support', keywords: 'chatgpt ai smart assistant' },

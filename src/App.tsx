@@ -15,7 +15,6 @@ import { CurrentAffairsPage } from './pages/CurrentAffairsPage'
 import { AnalyticsPage } from './pages/AnalyticsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { PYQPage } from './pages/PYQPage'
-import { MainsAnswerPage } from './pages/MainsAnswerPage'
 import { DoubtsPage } from './pages/DoubtsPage'
 import { ExamCalendarPage } from './pages/ExamCalendarPage'
 import { GoalsPage } from './pages/GoalsPage'
@@ -76,7 +75,6 @@ export default function App() {
           <Route path="/resources" element={<ResourcesPage />} />
           <Route path="/tests" element={<TestsPage />} />
           <Route path="/pyq" element={<PYQPage />} />
-          <Route path="/mains-answers" element={<MainsAnswerPage />} />
           <Route path="/current-affairs" element={<CurrentAffairsPage />} />
           <Route path="/analytics"      element={<AnalyticsPage />} />
           <Route path="/goals"          element={<GoalsPage />} />
