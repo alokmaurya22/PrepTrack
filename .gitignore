@@ -21,6 +21,10 @@ server.env
 # Claude Code local settings
 .claude/settings.local.json
 
+# Supabase — SQL files and edge functions (local dev only)
+supabase/**/*.sql
+supabase/functions/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
