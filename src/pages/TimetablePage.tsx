@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   CalendarDays, ChevronDown, ChevronUp, Loader2, LayoutList,
-  Sparkles, PenLine, X, Plus, Trash2,
+  Sparkles, PenLine, X, Plus, Trash2, Settings2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../store/authStore'
@@ -30,7 +30,7 @@ interface DayPlan {
 type BreakDays = 'none' | 'sundays' | 'weekends'
 type GenMode = 'auto' | 'manual'
 
-// ─── Plan generator (no paper sort — sorted by sort_order only) ───────────────
+// ─── Plan generator ───────────────────────────────────────────────────────────
 
 function generatePlan(
   topics: SyllabusLeaf[],
@@ -101,9 +101,202 @@ function groupByWeek(plan: DayPlan[]): { weekLabel: string; days: DayPlan[] }[] 
 
 function StatPill({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="border border-border rounded-lg bg-card p-3 text-center min-w-[80px]">
+    <div className="border border-border rounded-lg bg-card p-3 text-center min-w-[70px]">
       <p className="text-base font-bold text-foreground">{value}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+    </div>
+  )
+}
+
+// ─── Config Modal ─────────────────────────────────────────────────────────────
+
+interface ModalProps {
+  genMode: GenMode
+  setGenMode: (m: GenMode) => void
+  examDate: string
+  setExamDate: (v: string) => void
+  hoursPerDay: number
+  setHoursPerDay: (v: number) => void
+  breakDays: BreakDays
+  setBreakDays: (v: BreakDays) => void
+  loadingTopics: boolean
+  pendingTopics: SyllabusLeaf[]
+  totalHours: number
+  isGenerating: boolean
+  onGenerate: () => void
+  // manual
+  manualDate: string
+  setManualDate: (v: string) => void
+  manualUnassigned: SyllabusLeaf[]
+  manualSelected: Set<string>
+  toggleManualTopic: (id: string) => void
+  onManualAssign: () => void
+  onClose: () => void
+}
+
+const MODE_OPTIONS: { id: GenMode; label: string; Icon: React.ElementType }[] = [
+  { id: 'auto',   label: 'Auto',   Icon: Sparkles },
+  { id: 'manual', label: 'Manual', Icon: PenLine  },
+]
+
+function ConfigModal({
+  genMode, setGenMode,
+  examDate, setExamDate,
+  hoursPerDay, setHoursPerDay,
+  breakDays, setBreakDays,
+  loadingTopics, pendingTopics, totalHours,
+  isGenerating, onGenerate,
+  manualDate, setManualDate,
+  manualUnassigned, manualSelected, toggleManualTopic, onManualAssign,
+  onClose,
+}: ModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0" onClick={onClose} />
+
+      {/* Sheet (bottom on mobile, centered on desktop) */}
+      <div className="relative w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh]">
+
+        {/* Handle bar (mobile) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-border" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Plan Configuration</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {loadingTopics ? 'Loading…' : `${pendingTopics.length} topics · ${totalHours}h total`}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Mode toggle */}
+        <div className="px-5 pt-4 pb-0 flex-shrink-0">
+          <div className="flex bg-muted rounded-lg p-0.5">
+            {MODE_OPTIONS.map(({ id, label, Icon }) => (
+              <button key={id} onClick={() => setGenMode(id)}
+                className={cn('flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors',
+                  genMode === id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {genMode === 'auto' ? (
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Exam Date *</label>
+                <input type="date" value={examDate}
+                  min={format(addDays(new Date(), 1), 'yyyy-MM-dd')}
+                  onChange={e => setExamDate(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                  Study hours/day: <span className="font-semibold text-foreground">{hoursPerDay}h</span>
+                </label>
+                <input type="range" min={1} max={16} value={hoursPerDay}
+                  onChange={e => setHoursPerDay(Number(e.target.value))}
+                  className="w-full accent-primary"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground mt-0.5"><span>1h</span><span>16h</span></div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-2">Break days</label>
+                <div className="space-y-2">
+                  {([
+                    { value: 'none',     label: 'Study every day' },
+                    { value: 'sundays',  label: 'Sundays off' },
+                    { value: 'weekends', label: 'Weekends off (Sat + Sun)' },
+                  ] as const).map(({ value, label }) => (
+                    <label key={value} className={cn(
+                      'flex items-center gap-2.5 px-3 py-2.5 rounded-md border cursor-pointer transition-colors text-sm',
+                      breakDays === value ? 'border-primary/60 bg-primary/5 text-foreground' : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                    )}>
+                      <input type="radio" name="breakDays" value={value} checked={breakDays === value}
+                        onChange={() => setBreakDays(value)} className="accent-primary" />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {!loadingTopics && examDate && (
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  At {hoursPerDay}h/day ≈ <span className="font-semibold text-foreground">{Math.ceil(totalHours / hoursPerDay)} days</span> needed
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Assign to date</label>
+                <input type="date" value={manualDate}
+                  onChange={e => setManualDate(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">
+                  Select topics
+                  {manualSelected.size > 0 && <span className="ml-1 text-primary font-semibold">({manualSelected.size} selected)</span>}
+                </label>
+                <div className="max-h-60 overflow-y-auto rounded-md border border-border divide-y divide-border/50">
+                  {loadingTopics ? (
+                    <p className="p-3 text-xs text-muted-foreground text-center">Loading…</p>
+                  ) : manualUnassigned.length === 0 ? (
+                    <p className="p-3 text-xs text-muted-foreground text-center italic">All topics assigned</p>
+                  ) : (
+                    manualUnassigned.map(topic => (
+                      <label key={topic.id} className="flex items-start gap-2.5 px-3 py-2.5 hover:bg-muted/50 cursor-pointer active:bg-muted">
+                        <input type="checkbox" checked={manualSelected.has(topic.id)}
+                          onChange={() => toggleManualTopic(topic.id)}
+                          className="mt-0.5 accent-primary flex-shrink-0"
+                        />
+                        <span className="text-xs text-foreground leading-relaxed">{topic.title}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer action */}
+        <div className="px-5 py-4 border-t border-border flex-shrink-0">
+          {genMode === 'auto' ? (
+            <button onClick={onGenerate} disabled={isGenerating || loadingTopics || !examDate}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {isGenerating ? 'Generating…' : 'Generate Plan'}
+            </button>
+          ) : (
+            <button onClick={onManualAssign} disabled={manualSelected.size === 0 || !manualDate}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-3 text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              Assign {manualSelected.size > 0 ? `${manualSelected.size} topic${manualSelected.size > 1 ? 's' : ''}` : 'Topics'} to {manualDate ? format(parseISO(manualDate), 'd MMM') : '…'}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -118,6 +311,7 @@ export function TimetablePage() {
   const [examDate, setExamDate] = useState('')
   const [hoursPerDay, setHoursPerDay] = useState(8)
   const [breakDays, setBreakDays] = useState<BreakDays>('sundays')
+  const [showModal, setShowModal] = useState(false)
 
   // Data
   const [pendingTopics, setPendingTopics] = useState<SyllabusLeaf[]>([])
@@ -194,12 +388,13 @@ export function TimetablePage() {
       setPlan(generated)
       setUnassigned([])
       setExpandedWeeks(new Set([0]))
+      setIsGenerating(false)
       if (generated.length === 0) {
         toast.error('Could not generate a plan. Check that exam date is in the future.')
       } else {
         toast.success(`Plan generated: ${generated.length} study days`)
+        setShowModal(false)
       }
-      setIsGenerating(false)
     }, 50)
   }
 
@@ -223,6 +418,7 @@ export function TimetablePage() {
     const topics = pendingTopics.filter(t => manualSelected.has(t.id))
     topics.forEach(t => handleAddTopicToDay(manualDate, t))
     setManualSelected(new Set())
+    toast.success(`${topics.length} topic${topics.length > 1 ? 's' : ''} assigned to ${format(parseISO(manualDate), 'd MMM')}`)
   }
 
   // ── Save to planner ──────────────────────────────────────────────────────────
@@ -254,7 +450,6 @@ export function TimetablePage() {
   const planWeeks = plan ? groupByWeek(plan) : []
   const totalTopicsInPlan = plan?.reduce((s, d) => s + d.topics.length, 0) ?? 0
 
-  function switchMode(m: GenMode) { setGenMode(m); setPlan(null); setUnassigned([]) }
   function toggleWeek(idx: number) {
     setExpandedWeeks(prev => { const n = new Set(prev); n.has(idx) ? n.delete(idx) : n.add(idx); return n })
   }
@@ -264,296 +459,208 @@ export function TimetablePage() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border flex-shrink-0 flex-wrap gap-y-2">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border flex-shrink-0">
         <CalendarDays className="h-5 w-5 text-primary flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-foreground">Timetable</h1>
-          <p className="text-xs text-muted-foreground">Build and customize your study schedule</p>
+          <p className="text-xs text-muted-foreground hidden sm:block">Build and customize your study schedule</p>
         </div>
-        {/* Mode toggle */}
-        <div className="flex bg-muted rounded-lg p-0.5 flex-shrink-0">
-          {([['auto', 'Auto', Sparkles], ['manual', 'Manual', PenLine]] as const).map(([id, label, Icon]) => (
-            <button key={id} onClick={() => switchMode(id)}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                genMode === id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              )}
+        {plan && plan.length > 0 ? (
+          <div className="flex items-center gap-2">
+            <button onClick={handleSaveToPlanner} disabled={isSaving}
+              className="flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
-              <Icon className="h-3.5 w-3.5" /> {label}
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarDays className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{isSaving ? 'Saving…' : 'Add to Planner'}</span>
+              <span className="sm:hidden">{isSaving ? '…' : 'Add'}</span>
             </button>
-          ))}
-        </div>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">New Plan</span>
+            </button>
+          </div>
+        ) : (
+          <button onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Generate Plan</span>
+          </button>
+        )}
       </div>
 
-      {/* Body */}
-      <div className="flex flex-1 overflow-hidden min-h-0 flex-col md:flex-row">
+      {/* Body — full width plan view */}
+      <div className="flex-1 overflow-y-auto">
+        {!plan || plan.length === 0 ? (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-muted-foreground gap-4 px-6">
+            <LayoutList className="h-16 w-16 opacity-15" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground">No plan yet</p>
+              <p className="text-xs mt-1 opacity-70 max-w-xs">
+                Generate an automatic plan or manually assign topics to dates.
+              </p>
+            </div>
+            <button onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors mt-1"
+            >
+              <Sparkles className="h-4 w-4" /> Generate Plan
+            </button>
+          </div>
+        ) : (
+          <div className="p-4 space-y-4">
 
-        {/* ── Left: Config ──────────────────────────────────────────────────── */}
-        <div className="w-full md:w-72 lg:w-80 flex-shrink-0 border-b md:border-b-0 md:border-r border-border overflow-y-auto p-4 space-y-4">
+            {/* Summary row */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <StatPill label="Days" value={plan.length} />
+              <StatPill label="Topics" value={totalTopicsInPlan} />
+              <StatPill label="Weeks" value={planWeeks.length} />
+              {unassigned.length > 0 && (
+                <div className="px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700/50 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  {unassigned.length} unassigned
+                </div>
+              )}
+            </div>
 
-          {genMode === 'auto' ? (
-            <>
-              <p className="text-sm font-semibold text-foreground">Auto Configuration</p>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">Exam Date *</label>
-                <input type="date" value={examDate}
-                  min={format(addDays(new Date(), 1), 'yyyy-MM-dd')}
-                  onChange={e => setExamDate(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  Study hours/day: <span className="font-semibold text-foreground">{hoursPerDay}h</span>
-                </label>
-                <input type="range" min={1} max={16} value={hoursPerDay}
-                  onChange={e => setHoursPerDay(Number(e.target.value))}
-                  className="w-full accent-primary"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground mt-0.5"><span>1h</span><span>16h</span></div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-2">Break days</label>
-                <div className="space-y-1.5">
-                  {([
-                    { value: 'none',     label: 'Study every day' },
-                    { value: 'sundays',  label: 'Sundays off' },
-                    { value: 'weekends', label: 'Weekends off (Sat + Sun)' },
-                  ] as const).map(({ value, label }) => (
-                    <label key={value} className={cn(
-                      'flex items-center gap-2.5 px-3 py-2 rounded-md border cursor-pointer transition-colors text-sm',
-                      breakDays === value ? 'border-primary/60 bg-primary/5 text-foreground' : 'border-border bg-background text-muted-foreground hover:bg-muted'
-                    )}>
-                      <input type="radio" name="breakDays" value={value} checked={breakDays === value}
-                        onChange={() => setBreakDays(value)} className="accent-primary" />
-                      {label}
-                    </label>
+            {/* Unassigned pool */}
+            {unassigned.length > 0 && (
+              <div className="rounded-lg border border-amber-300 dark:border-amber-700/50 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2">
+                  Unassigned — click a day's "+" to reassign
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {unassigned.map(t => (
+                    <span key={t.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
+                      <span className="truncate max-w-[160px]" title={t.title}>{t.title}</span>
+                      <span className="text-amber-600/60">{t.default_hours > 0 ? `${t.default_hours}h` : '1h'}</span>
+                    </span>
                   ))}
                 </div>
               </div>
+            )}
 
-              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
-                {loadingTopics ? <p className="text-xs text-muted-foreground">Loading…</p> : (<>
-                  <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">{pendingTopics.length}</span> topics remaining</p>
-                  <p className="text-xs text-muted-foreground"><span className="font-semibold text-foreground">{totalHours}h</span> total hours</p>
-                  {examDate && <p className="text-xs text-muted-foreground">At {hoursPerDay}h/day ≈ <span className="font-semibold text-foreground">{Math.ceil(totalHours / hoursPerDay)} days</span></p>}
-                </>)}
-              </div>
-
-              <button onClick={handleGenerate} disabled={isGenerating || loadingTopics || !examDate}
-                className="w-full flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {isGenerating ? 'Generating…' : 'Generate Plan'}
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-semibold text-foreground">Manual Assignment</p>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">Assign to date</label>
-                <input type="date" value={manualDate}
-                  onChange={e => setManualDate(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  Select topics
-                  {manualSelected.size > 0 && <span className="ml-1 text-primary font-semibold">({manualSelected.size} selected)</span>}
-                </label>
-                <div className="max-h-52 overflow-y-auto rounded-md border border-border divide-y divide-border/50">
-                  {loadingTopics ? (
-                    <p className="p-3 text-xs text-muted-foreground text-center">Loading…</p>
-                  ) : manualUnassigned.length === 0 ? (
-                    <p className="p-3 text-xs text-muted-foreground text-center italic">All topics assigned</p>
-                  ) : (
-                    manualUnassigned.map(topic => (
-                      <label key={topic.id} className="flex items-start gap-2.5 px-3 py-2 hover:bg-muted/50 cursor-pointer">
-                        <input type="checkbox" checked={manualSelected.has(topic.id)}
-                          onChange={() => toggleManualTopic(topic.id)}
-                          className="mt-0.5 accent-primary flex-shrink-0"
-                        />
-                        <span className="text-xs text-foreground leading-relaxed">{topic.title}</span>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <button onClick={handleManualAssign} disabled={manualSelected.size === 0 || !manualDate}
-                className="w-full flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                Assign to {manualDate ? format(parseISO(manualDate), 'd MMM') : '…'}
-              </button>
-
-              <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground">{manualUnassigned.length}</span> topics unassigned
-                  {plan && <> · <span className="font-semibold text-foreground">{totalTopicsInPlan}</span> assigned</>}
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── Right: Plan ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {!plan || plan.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-muted-foreground gap-3">
-              <LayoutList className="h-14 w-14 opacity-20" />
-              <p className="text-sm font-medium text-center">
-                {genMode === 'auto' ? 'Configure and click Generate Plan' : 'Select topics and assign them to dates'}
-              </p>
-              <p className="text-xs text-center max-w-xs opacity-70">
-                {genMode === 'auto'
-                  ? 'Topics will be spread across your available study days.'
-                  : 'Pick topics from the left panel and assign them to specific dates.'}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-
-              {/* Summary + save */}
-              <div className="flex flex-wrap gap-2 items-center">
-                <StatPill label="Days" value={plan.length} />
-                <StatPill label="Topics" value={totalTopicsInPlan} />
-                <StatPill label="Weeks" value={planWeeks.length} />
-                {unassigned.length > 0 && (
-                  <div className="px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700/50 text-xs font-medium text-amber-700 dark:text-amber-400">
-                    {unassigned.length} unassigned
-                  </div>
-                )}
-                <button onClick={handleSaveToPlanner} disabled={isSaving}
-                  className="ml-auto flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                >
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}
-                  {isSaving ? 'Saving…' : 'Add to Planner'}
-                </button>
-              </div>
-
-              {/* Unassigned pool */}
-              {unassigned.length > 0 && (
-                <div className="rounded-lg border border-amber-300 dark:border-amber-700/50 bg-amber-50/50 dark:bg-amber-950/20 p-3">
-                  <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-2">
-                    Unassigned — click a day's "+" to assign
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {unassigned.map(t => (
-                      <span key={t.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-xs font-medium">
-                        <span className="truncate max-w-[160px]" title={t.title}>{t.title}</span>
-                        <span className="text-amber-600/60">{t.default_hours > 0 ? `${t.default_hours}h` : '1h'}</span>
+            {/* Plan weeks */}
+            <div className="space-y-2">
+              {planWeeks.map((week, wIdx) => (
+                <div key={wIdx} className="border border-border rounded-lg overflow-hidden">
+                  <button onClick={() => toggleWeek(wIdx)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors"
+                  >
+                    <span className="text-xs font-semibold text-foreground">{week.weekLabel}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {week.days.reduce((s, d) => s + d.topics.length, 0)} topics
                       </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+                      {expandedWeeks.has(wIdx)
+                        ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                        : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                    </div>
+                  </button>
 
-              {/* Plan weeks */}
-              <div className="space-y-2">
-                {planWeeks.map((week, wIdx) => (
-                  <div key={wIdx} className="border border-border rounded-lg overflow-hidden">
-                    <button onClick={() => toggleWeek(wIdx)}
-                      className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/40 hover:bg-muted/60 transition-colors"
-                    >
-                      <span className="text-xs font-semibold text-foreground">{week.weekLabel}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {week.days.reduce((s, d) => s + d.topics.length, 0)} topics
-                        </span>
-                        {expandedWeeks.has(wIdx)
-                          ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                          : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-                      </div>
-                    </button>
+                  {expandedWeeks.has(wIdx) && (
+                    <div className="divide-y divide-border">
+                      {week.days.map(day => (
+                        <div key={day.date} className="px-3 py-2.5 sm:px-4 hover:bg-muted/10 transition-colors">
+                          <div className="flex items-start gap-2.5 sm:gap-3">
+                            {/* Date badge */}
+                            <div className="flex-shrink-0 text-center min-w-[42px] sm:min-w-[46px]">
+                              <p className="text-xs font-semibold text-primary">{day.dayLabel.split(',')[0]}</p>
+                              <p className="text-[10px] text-muted-foreground leading-tight">{day.dayLabel.split(',')[1]?.trim()}</p>
+                            </div>
 
-                    {expandedWeeks.has(wIdx) && (
-                      <div className="divide-y divide-border">
-                        {week.days.map(day => (
-                          <div key={day.date} className="px-4 py-2.5 hover:bg-muted/10 transition-colors">
-                            <div className="flex items-start gap-3">
-                              {/* Date badge */}
-                              <div className="flex-shrink-0 text-center min-w-[46px]">
-                                <p className="text-xs font-semibold text-primary">{day.dayLabel.split(',')[0]}</p>
-                                <p className="text-xs text-muted-foreground">{day.dayLabel.split(',')[1]?.trim()}</p>
-                              </div>
-
-                              {/* Topics (editable chips) */}
-                              <div className="flex-1 flex flex-wrap gap-1.5 min-w-0">
-                                {day.topics.map(topic => (
-                                  <span key={topic.id}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium"
-                                  >
-                                    <span className="truncate max-w-[150px]" title={topic.title}>{topic.title}</span>
-                                    <span className="text-primary/50 flex-shrink-0 text-[10px]">
-                                      {topic.default_hours > 0 ? `${topic.default_hours}h` : '1h'}
-                                    </span>
-                                    <button onClick={() => handleRemoveTopic(day.date, topic.id)}
-                                      className="ml-0.5 text-primary/40 hover:text-destructive transition-colors flex-shrink-0"
-                                      title="Remove from this day"
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </span>
-                                ))}
-
-                                {/* Add from unassigned */}
-                                {unassigned.length > 0 && (
-                                  addingToDate === day.date ? (
-                                    <div className="flex flex-wrap gap-1 items-center mt-0.5 w-full">
-                                      <span className="text-[10px] text-muted-foreground mr-1">Pick topic:</span>
-                                      {unassigned.map(t => (
-                                        <button key={t.id} onClick={() => handleAddTopicToDay(day.date, t)}
-                                          className="px-2 py-0.5 rounded-full border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                                        >
-                                          {t.title.length > 30 ? t.title.slice(0, 30) + '…' : t.title}
-                                        </button>
-                                      ))}
-                                      <button onClick={() => setAddingToDate(null)}
-                                        className="text-xs text-muted-foreground hover:text-foreground px-1 ml-1"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button onClick={() => setAddingToDate(day.date)}
-                                      className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                                    >
-                                      <Plus className="h-3 w-3" /> Add
-                                    </button>
-                                  )
-                                )}
-                              </div>
-
-                              {/* Hours + remove day */}
-                              <div className="flex-shrink-0 flex items-center gap-1.5">
-                                <span className="text-xs font-semibold text-foreground tabular-nums">
-                                  {day.topics.reduce((s, t) => s + (t.default_hours > 0 ? t.default_hours : 1), 0)}h
-                                </span>
-                                <button onClick={() => handleRemoveDay(day.date)}
-                                  className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                  title="Remove this day"
+                            {/* Topics */}
+                            <div className="flex-1 flex flex-wrap gap-1.5 min-w-0">
+                              {day.topics.map(topic => (
+                                <span key={topic.id}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium"
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
+                                  <span className="truncate max-w-[140px] sm:max-w-[200px]" title={topic.title}>{topic.title}</span>
+                                  <span className="text-primary/50 flex-shrink-0 text-[10px]">
+                                    {topic.default_hours > 0 ? `${topic.default_hours}h` : '1h'}
+                                  </span>
+                                  <button onClick={() => handleRemoveTopic(day.date, topic.id)}
+                                    className="ml-0.5 text-primary/40 hover:text-destructive transition-colors flex-shrink-0 p-0.5"
+                                    title="Remove from this day"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ))}
+
+                              {/* Add from unassigned */}
+                              {unassigned.length > 0 && (
+                                addingToDate === day.date ? (
+                                  <div className="flex flex-wrap gap-1 items-center mt-0.5 w-full">
+                                    <span className="text-[10px] text-muted-foreground w-full mb-0.5">Pick topic to add:</span>
+                                    {unassigned.map(t => (
+                                      <button key={t.id} onClick={() => handleAddTopicToDay(day.date, t)}
+                                        className="px-2 py-0.5 rounded-full border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                                      >
+                                        {t.title.length > 28 ? t.title.slice(0, 28) + '…' : t.title}
+                                      </button>
+                                    ))}
+                                    <button onClick={() => setAddingToDate(null)}
+                                      className="text-xs text-muted-foreground hover:text-foreground px-1 ml-1"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => setAddingToDate(day.date)}
+                                    className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border border-dashed border-border text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                                  >
+                                    <Plus className="h-3 w-3" /> Add
+                                  </button>
+                                )
+                              )}
+                            </div>
+
+                            {/* Hours + remove day */}
+                            <div className="flex-shrink-0 flex items-center gap-1">
+                              <span className="text-xs font-semibold text-foreground tabular-nums">
+                                {day.topics.reduce((s, t) => s + (t.default_hours > 0 ? t.default_hours : 1), 0)}h
+                              </span>
+                              <button onClick={() => handleRemoveDay(day.date)}
+                                className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                title="Remove this day"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+
+      {/* Config Modal */}
+      {showModal && (
+        <ConfigModal
+          genMode={genMode} setGenMode={setGenMode}
+          examDate={examDate} setExamDate={setExamDate}
+          hoursPerDay={hoursPerDay} setHoursPerDay={setHoursPerDay}
+          breakDays={breakDays} setBreakDays={setBreakDays}
+          loadingTopics={loadingTopics}
+          pendingTopics={pendingTopics}
+          totalHours={totalHours}
+          isGenerating={isGenerating}
+          onGenerate={handleGenerate}
+          manualDate={manualDate} setManualDate={setManualDate}
+          manualUnassigned={manualUnassigned}
+          manualSelected={manualSelected}
+          toggleManualTopic={toggleManualTopic}
+          onManualAssign={handleManualAssign}
+          onClose={() => setShowModal(false)}
+        />
+      )}
     </div>
   )
 }
