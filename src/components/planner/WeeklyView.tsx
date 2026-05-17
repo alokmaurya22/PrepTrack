@@ -7,7 +7,11 @@ import { TaskForm } from './TaskForm'
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-export function WeeklyView() {
+interface Props {
+  onSelectDate?: (date: string) => void
+}
+
+export function WeeklyView({ onSelectDate }: Props) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [showForm, setShowForm] = useState(false)
@@ -101,7 +105,10 @@ export function WeeklyView() {
               >
                 {/* Day header */}
                 <button
-                  onClick={() => setSelectedDate(day)}
+                  onClick={() => {
+                    if (onSelectDate) onSelectDate(dateStr)
+                    else setSelectedDate(day)
+                  }}
                   className={cn(
                     'text-center py-2 border-b border-border flex-shrink-0',
                     today && 'bg-primary/10'
@@ -124,8 +131,12 @@ export function WeeklyView() {
                     <div
                       key={task.id}
                       onClick={() => {
-                        setEditingTask(task)
-                        setShowForm(true)
+                        if (onSelectDate) {
+                          onSelectDate(dateStr)
+                        } else {
+                          setEditingTask(task)
+                          setShowForm(true)
+                        }
                       }}
                       className={cn(
                         'text-xs px-2 py-1 rounded cursor-pointer truncate transition-colors',

@@ -7,7 +7,11 @@ import { TaskForm } from './TaskForm'
 
 const WEEKDAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-export function MonthlyView() {
+interface Props {
+  onSelectDate?: (date: string) => void
+}
+
+export function MonthlyView({ onSelectDate }: Props) {
   const today = new Date()
   const [currentMonth, setCurrentMonth] = useState<Date>(today)
   const [selectedDate, setSelectedDate] = useState<Date>(today)
@@ -107,9 +111,13 @@ export function MonthlyView() {
               <button
                 key={dateStr}
                 onClick={() => {
-                  setSelectedDate(day)
-                  setEditingTask(null)
-                  setShowForm(true)
+                  if (onSelectDate) {
+                    onSelectDate(dateStr)
+                  } else {
+                    setSelectedDate(day)
+                    setEditingTask(null)
+                    setShowForm(true)
+                  }
                 }}
                 className={cn(
                   'border-r border-b border-border/50 p-1.5 text-left hover:bg-muted/30 transition-colors relative flex flex-col',

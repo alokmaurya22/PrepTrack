@@ -86,6 +86,25 @@ export function useTasksForMonth(year: number, month: number) {
   })
 }
 
+export function useTasksForDateRange(startDate: string, endDate: string) {
+  const { session } = useAuthStore()
+  return useQuery({
+    queryKey: ['tasks', 'range', startDate, endDate],
+    enabled: !!session,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', session!.user.id)
+        .gte('target_date', startDate)
+        .lte('target_date', endDate)
+        .order('target_date')
+      if (error) throw error
+      return data as Task[]
+    },
+  })
+}
+
 export function useCreateTask() {
   const { session } = useAuthStore()
   const qc = useQueryClient()

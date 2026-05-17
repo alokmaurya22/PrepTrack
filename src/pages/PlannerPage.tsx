@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { CalendarDays, CalendarRange, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarDays, CalendarRange, Calendar, CalendarFold, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { DailyView } from '../components/planner/DailyView'
 import { WeeklyView } from '../components/planner/WeeklyView'
 import { MonthlyView } from '../components/planner/MonthlyView'
+import { YearlyView } from '../components/planner/YearlyView'
 import { useDailyLog } from '../lib/queries/dailyLogs'
-import { format, isToday, addDays } from 'date-fns'
+import { format, isToday, addDays, parseISO } from 'date-fns'
 
-type ViewMode = 'daily' | 'weekly' | 'monthly'
+type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 export function PlannerPage() {
   const [mode, setMode] = useState<ViewMode>('daily')
@@ -23,10 +24,16 @@ export function PlannerPage() {
   const nextDay = () => setSelectedDate((d) => addDays(d, 1))
   const goToday = () => setSelectedDate(new Date())
 
+  const handleSelectDate = (dateStr: string) => {
+    setSelectedDate(parseISO(dateStr))
+    setMode('daily')
+  }
+
   const tabs = [
     { id: 'daily'   as const, label: 'Daily',   icon: CalendarDays  },
     { id: 'weekly'  as const, label: 'Weekly',  icon: CalendarRange },
     { id: 'monthly' as const, label: 'Monthly', icon: Calendar      },
+    { id: 'yearly'  as const, label: 'Yearly',  icon: CalendarFold  },
   ]
 
   return (
@@ -109,8 +116,9 @@ export function PlannerPage() {
       {/* View content */}
       <div className="flex-1 overflow-hidden">
         {mode === 'daily' && <DailyView date={dateStr} dateLabel={dateLabel} />}
-        {mode === 'weekly' && <WeeklyView />}
-        {mode === 'monthly' && <MonthlyView />}
+        {mode === 'weekly' && <WeeklyView onSelectDate={handleSelectDate} />}
+        {mode === 'monthly' && <MonthlyView onSelectDate={handleSelectDate} />}
+        {mode === 'yearly' && <YearlyView onSelectDate={handleSelectDate} />}
       </div>
     </div>
   )
