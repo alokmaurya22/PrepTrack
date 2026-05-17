@@ -275,6 +275,7 @@ export function useCreateSyllabusNode() {
       level: number
       sort_order: number
       initialStatus?: string
+      metadata?: Record<string, unknown>
     }) => {
       const { data, error } = await supabase
         .from('syllabus_nodes')
@@ -289,8 +290,8 @@ export function useCreateSyllabusNode() {
           is_leaf: node.is_leaf ?? true,
           level: node.level,
           sort_order: node.sort_order,
-          code: '',
-          metadata: {},
+          code: `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+          metadata: node.metadata ?? {},
         })
         .select()
         .single()
@@ -370,5 +371,32 @@ export function useDeleteSyllabusNode() {
       toast.success('Topic deleted')
     },
     onError: (e: Error) => toast.error(e.message),
+  })
+}
+
+export type GlobalSearchNode = Pick<
+  SyllabusNode,
+  'id' | 'title' | 'level' | 'stage' | 'paper' | 'description' | 'default_hours' | 'is_leaf'
+>
+
+export function useSearchGlobalSyllabusNodes(query: string, level?: number) {
+  return useQuery({
+    queryKey: ['syllabus-global-search', query, level],
+    enabled: query.length >= 2,
+    staleTime: 1000 * 30,
+    queryFn: async () => {
+      let q = supabase
+        .from('syllabus_nodes')
+        .select('id, title, level, stage, paper, description, default_hours, is_leaf')
+        .ilike('title', `%${query}%`)
+        .order('title')
+        .limit(15)
+      if (level !== undefined) {
+        q = q.eq('level', level)
+      }
+      const { data, error } = await q
+      if (error) throw error
+      return data as GlobalSearchNode[]
+    },
   })
 }
