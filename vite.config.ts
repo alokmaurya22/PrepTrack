@@ -14,7 +14,7 @@ export default defineConfig({
         name: 'PrepTrack — Exam Preparation Tracker',
         short_name: 'PrepTrack',
         description: 'Track your syllabus, plan daily study, log tests, manage notes, and get AI-assisted insights.',
-        theme_color: '#7c3aed',
+        theme_color: '#0a0a14',
         background_color: '#0f0f0f',
         display: 'standalone',
         orientation: 'portrait',
@@ -30,6 +30,7 @@ export default defineConfig({
       workbox: {
         // Cache all static assets
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        globIgnores: ['preptrack_logo.png'],
         // Don't cache Supabase API calls — always fresh from network
         navigateFallback: '/index.html',
         runtimeCaching: [
