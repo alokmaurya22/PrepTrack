@@ -5,6 +5,7 @@ import {
   useCreateSyllabusNode,
   useUpdateSyllabusNode,
   useSearchGlobalSyllabusNodes,
+  useCopyNodeSubtree,
 } from '../../lib/queries/syllabus'
 import type { SyllabusNode, GlobalSearchNode } from '../../lib/queries/syllabus'
 
@@ -62,8 +63,9 @@ function getValidParentLevels(addType: AddType): number[] {
 }
 
 export function NodeModal({ mode, parentNode, addType = 'topic', allNodes = [], node, siblingCount, onClose }: NodeModalProps) {
-  const createNode = useCreateSyllabusNode()
-  const updateNode = useUpdateSyllabusNode()
+  const createNode   = useCreateSyllabusNode()
+  const updateNode   = useUpdateSyllabusNode()
+  const copySubtree  = useCopyNodeSubtree()
 
   const cfg = ADD_CONFIG[addType]
 
@@ -151,18 +153,12 @@ export function NodeModal({ mode, parentNode, addType = 'topic', allNodes = [], 
   }
 
   const handleCopy = (result: GlobalSearchNode) => {
-    createNode.mutate(
+    copySubtree.mutate(
       {
-        parent_id: resolvedParent?.id ?? null,
-        title: result.title,
-        stage: result.stage ?? undefined,
-        paper: result.paper ?? undefined,
-        description: result.description ?? undefined,
-        default_hours: result.default_hours ?? 2,
-        is_leaf: result.is_leaf,
+        sourceId: result.id,
+        parentId: resolvedParent?.id ?? null,
         level: newLevel,
-        sort_order: siblingCount + 1,
-        metadata: { nodeType: addType, copiedFrom: result.id },
+        sortOrder: siblingCount + 1,
       },
       { onSuccess: onClose },
     )
@@ -214,7 +210,7 @@ export function NodeModal({ mode, parentNode, addType = 'topic', allNodes = [], 
         {mode === 'create' && tab === 'copy' && (
           <div className="flex flex-col flex-1 overflow-hidden px-5 py-4 gap-3">
             <p className="text-xs text-muted-foreground">
-              Search from others' syllabi and copy it to yours. You can edit your copy independently.
+              Search from others' syllabi and copy it with all its sub-items (papers → subjects → topics). You can edit your copy independently.
             </p>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -235,10 +231,13 @@ export function NodeModal({ mode, parentNode, addType = 'topic', allNodes = [], 
               {searchQuery.length >= 2 && !searching && (!searchResults || searchResults.length === 0) && (
                 <p className="p-4 text-xs text-muted-foreground text-center">No results found.</p>
               )}
-              {searchResults?.map((result) => (
+              {copySubtree.isPending && (
+                <p className="p-4 text-xs text-muted-foreground text-center animate-pulse">Copying with all sub-items…</p>
+              )}
+              {!copySubtree.isPending && searchResults?.map((result) => (
                 <button
                   key={result.id} type="button"
-                  disabled={createNode.isPending}
+                  disabled={copySubtree.isPending}
                   onClick={() => handleCopy(result)}
                   className="w-full text-left px-4 py-3 hover:bg-muted/60 transition-colors disabled:opacity-50"
                 >

@@ -400,3 +400,74 @@ export function useSearchGlobalSyllabusNodes(query: string, level?: number) {
     },
   })
 }
+
+export function useCopyNodeSubtree() {
+  const { session } = useAuthStore()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      sourceId,
+      parentId,
+      level,
+      sortOrder,
+    }: {
+      sourceId: string
+      parentId: string | null
+      level: number
+      sortOrder: number
+    }) => {
+      const copyNode = async (
+        srcId: string,
+        newParentId: string | null,
+        newLevel: number,
+        newSortOrder: number,
+      ): Promise<void> => {
+        const { data: src, error: srcErr } = await supabase
+          .from('syllabus_nodes')
+          .select('*')
+          .eq('id', srcId)
+          .single()
+        if (srcErr) throw srcErr
+
+        const { data: inserted, error: insertErr } = await supabase
+          .from('syllabus_nodes')
+          .insert({
+            user_id: session!.user.id,
+            parent_id: newParentId,
+            title: src.title,
+            description: src.description,
+            stage: src.stage,
+            paper: src.paper,
+            default_hours: src.default_hours,
+            is_leaf: src.is_leaf,
+            level: newLevel,
+            sort_order: newSortOrder,
+            code: `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 11)}`,
+            metadata: { copiedFrom: srcId },
+          })
+          .select('id')
+          .single()
+        if (insertErr) throw insertErr
+
+        const { data: children, error: childErr } = await supabase
+          .from('syllabus_nodes')
+          .select('id')
+          .eq('parent_id', srcId)
+          .order('sort_order')
+        if (childErr) throw childErr
+
+        for (let i = 0; i < (children?.length ?? 0); i++) {
+          await copyNode(children![i].id, inserted.id, newLevel + 1, i + 1)
+        }
+      }
+
+      await copyNode(sourceId, parentId, level, sortOrder)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['syllabus'] })
+      qc.invalidateQueries({ queryKey: ['syllabus-progress'] })
+      toast.success('Copied with all sub-items')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+}
