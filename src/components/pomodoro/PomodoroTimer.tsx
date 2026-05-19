@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Link } from 'react-router-dom'
 import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2, Bell, VolumeX, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useStartSession, useEndSession } from '../../lib/queries/sessions'
@@ -114,7 +113,6 @@ export function PomodoroTimer() {
   )
   const [alarmPlaying, setAlarmPlaying] = useState(false)
   const [hasStarted, setHasStarted]     = useState(false)
-  const [showClose, setShowClose]       = useState(false)
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const { data: todayTasks } = useTasksForDate(today)
@@ -277,7 +275,6 @@ export function PomodoroTimer() {
       setTimeLeft(modeConfig.focus.duration)
     }
     setHasStarted(false)
-    setShowClose(false)
     setTimerState('idle')
     setSessionId(null)
   }
@@ -289,7 +286,6 @@ export function PomodoroTimer() {
     setMode(newMode)
     setTimeLeft(modeConfig[newMode].duration)
     setHasStarted(false)
-    setShowClose(false)
     setTimerState('idle')
     setSessionId(null)
   }
@@ -306,7 +302,6 @@ export function PomodoroTimer() {
     setDurations(nd)
     setTimeLeft(nd[mode] * 60)
     setHasStarted(false)
-    setShowClose(false)
     setTimerState('idle')
     stopWorker()
     stopAlarm()
@@ -317,103 +312,7 @@ export function PomodoroTimer() {
   const minutes = Math.floor(timeLeft / 60)
   const seconds = timeLeft % 60
 
-  // ── Alarm full-screen overlay ─────────────────────────────────────────────
-  if (timerState === 'finished' && hasStarted) {
-    const isFocus   = mode === 'focus'
-    const nextLabel = isFocus ? 'Take a Break' : 'Start Focus'
-    const doneLabel = isFocus ? 'Focus session complete!' : 'Break time is over!'
-    const subLabel  = isFocus
-      ? `You focused for ${durations.focus} minutes. Well done!`
-      : `${durations[mode]} min break ended. Ready to go again?`
-
-    // Show X + stop audio — state reset NOT done here so the portal stays
-    // rendered with X visible until Link navigation unmounts the component.
-    // If navigation fails, X remains as fallback and onDismiss handles reset.
-    const onStopAlarmClick = () => {
-      setShowClose(true)
-      stopAlarm()
-    }
-
-    const onAdvanceClick = () => {
-      setShowClose(true)
-      stopWorker()
-      stopAlarm()
-      if (sessionId) endSession.mutate({ sessionId })
-    }
-
-    // Fallback: X just closes overlay without navigating
-    const onDismiss = () => {
-      stopAlarm()
-      setHasStarted(false)
-      setShowClose(false)
-      setTimerState('idle')
-    }
-
-    return (
-      <div
-        className="flex flex-col items-center justify-center bg-background"
-        style={{ position: 'fixed', inset: 0, zIndex: 9999 }}
-      >
-        {/* X dismiss — appears after either button is pressed, fallback if Link navigation fails */}
-        {showClose && (
-          <button
-            onClick={onDismiss}
-            className="absolute top-5 right-5 p-2 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        )}
-
-        {/* Animated radial glow */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: `radial-gradient(ellipse at center, ${isFocus ? '#ef444430' : '#22c55e30'} 0%, transparent 70%)` }}
-        />
-
-        {/* Pulsing logo */}
-        <div className="relative mb-8">
-          <div className={cn('absolute inset-0 rounded-3xl animate-ping opacity-25', isFocus ? 'bg-red-500' : 'bg-green-500')} />
-          <img src="/preptrack_logo.png" alt="PrepTrack" className="relative h-24 w-24 rounded-3xl shadow-2xl" />
-        </div>
-
-        {/* Current time */}
-        <p className="text-5xl font-bold tabular-nums text-foreground mb-3">{format(new Date(), 'HH:mm')}</p>
-
-        {/* Done message */}
-        <h2 className="text-2xl font-bold text-foreground mb-1">{doneLabel}</h2>
-        <p className="text-sm text-muted-foreground mb-10 text-center px-8">{subLabel}</p>
-
-        {/* Stop alarm — Link handles navigation, onClick handles cleanup */}
-        <Link
-          to="/"
-          onClick={onStopAlarmClick}
-          className={cn(
-            'w-64 py-4 rounded-2xl text-base font-bold mb-3 flex items-center justify-center gap-2 transition-all shadow-lg',
-            alarmPlaying
-              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 animate-pulse'
-              : 'bg-muted text-muted-foreground'
-          )}
-        >
-          <VolumeX className="h-5 w-5" />
-          {alarmPlaying ? 'Stop Alarm' : 'Alarm stopped'}
-        </Link>
-
-        {/* Advance — Link handles navigation, onClick handles cleanup */}
-        <Link
-          to="/"
-          onClick={onAdvanceClick}
-          className="w-64 py-4 rounded-2xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
-        >
-          {nextLabel} <ArrowRight className="h-5 w-5" />
-        </Link>
-
-        {/* Session count */}
-        <p className="text-xs text-muted-foreground mt-8">
-          {sessionsCompleted} focus session{sessionsCompleted === 1 ? '' : 's'} completed today
-        </p>
-      </div>
-    )
-  }
+  const isFocus = mode === 'focus'
 
   // ── Normal timer UI ────────────────────────────────────────────────────────
   return (
@@ -517,7 +416,7 @@ export function PomodoroTimer() {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-center gap-3">
         {timerState === 'idle' && (
           <button
             onClick={start}
@@ -533,12 +432,35 @@ export function PomodoroTimer() {
           </button>
         )}
         {timerState === 'paused' && (
-          <>
+          <div className="flex items-center gap-3">
             <button onClick={resume} className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors">
               <Play className="h-4 w-4 fill-current" /> Resume
             </button>
             <button onClick={endSessionAndReset} disabled={endSession.isPending} className="flex items-center gap-2 rounded-full border border-border px-4 py-3 text-sm text-muted-foreground hover:bg-muted transition-colors">
               <RotateCcw className="h-4 w-4" /> Skip
+            </button>
+          </div>
+        )}
+        {timerState === 'finished' && hasStarted && (
+          <>
+            <button
+              onClick={stopAlarm}
+              className={cn(
+                'flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-colors',
+                alarmPlaying
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 animate-pulse'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              <VolumeX className="h-4 w-4" />
+              {alarmPlaying ? 'Stop Alarm' : 'Alarm stopped'}
+            </button>
+            <button
+              onClick={endSessionAndReset}
+              disabled={endSession.isPending}
+              className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {isFocus ? 'Take a Break' : 'Start Focus'} <ArrowRight className="h-4 w-4" />
             </button>
           </>
         )}
