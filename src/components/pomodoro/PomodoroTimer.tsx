@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2, Bell, VolumeX, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useStartSession, useEndSession } from '../../lib/queries/sessions'
@@ -111,6 +112,7 @@ function showNotification(title: string, body: string) {
 }
 
 export function PomodoroTimer() {
+  const navigate     = useNavigate()
   const startSession = useStartSession()
   const endSession   = useEndSession()
 
@@ -453,7 +455,7 @@ export function PomodoroTimer() {
         {timerState === 'finished' && hasStarted && (
           <>
             <button
-              onClick={stopAlarm}
+              onClick={() => { stopAlarm(); navigate('/') }}
               className={cn(
                 'flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-colors',
                 alarmPlaying
@@ -465,7 +467,7 @@ export function PomodoroTimer() {
               {alarmPlaying ? 'Stop Alarm' : 'Alarm stopped'}
             </button>
             <button
-              onClick={endSessionAndReset}
+              onClick={() => { endSessionAndReset(); navigate('/') }}
               disabled={endSession.isPending}
               className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
