@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2, Bell, VolumeX, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -318,8 +317,7 @@ export function PomodoroTimer() {
   const minutes = Math.floor(timeLeft / 60)
   const seconds = timeLeft % 60
 
-  // ── Alarm full-screen overlay (portal → renders inside #root so Android PWA
-  //    WebView paints it correctly; document.body portals are skipped in PWA) ──
+  // ── Alarm full-screen overlay ─────────────────────────────────────────────
   if (timerState === 'finished' && hasStarted) {
     const isFocus   = mode === 'focus'
     const nextLabel = isFocus ? 'Take a Break' : 'Start Focus'
@@ -351,7 +349,7 @@ export function PomodoroTimer() {
       setTimerState('idle')
     }
 
-    return createPortal(
+    return (
       <div
         className="flex flex-col items-center justify-center bg-background"
         style={{ position: 'fixed', inset: 0, zIndex: 9999 }}
@@ -413,8 +411,7 @@ export function PomodoroTimer() {
         <p className="text-xs text-muted-foreground mt-8">
           {sessionsCompleted} focus session{sessionsCompleted === 1 ? '' : 's'} completed today
         </p>
-      </div>,
-      document.getElementById('root') ?? document.body
+      </div>
     )
   }
 
