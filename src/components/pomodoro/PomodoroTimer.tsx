@@ -57,28 +57,35 @@ function playAlarm(): () => void {
     const ids: ReturnType<typeof setTimeout>[] = []
 
     const beep = (t: number, freq: number, dur: number) => {
-      if (!active) return
-      const osc  = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      gain.gain.setValueAtTime(0, t)
-      gain.gain.linearRampToValueAtTime(0.65, t + 0.03)
-      gain.gain.setValueAtTime(0.65, t + dur - 0.05)
-      gain.gain.linearRampToValueAtTime(0, t + dur)
-      osc.start(t)
-      osc.stop(t + dur + 0.06)
+      try {
+        if (!active) return
+        const osc  = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.type = 'sine'
+        osc.frequency.value = freq
+        gain.gain.setValueAtTime(0, t)
+        gain.gain.linearRampToValueAtTime(0.65, t + 0.03)
+        gain.gain.setValueAtTime(0.65, t + dur - 0.05)
+        gain.gain.linearRampToValueAtTime(0, t + dur)
+        osc.start(t)
+        osc.stop(t + dur + 0.06)
+      } catch {}
     }
 
     const pattern = () => {
-      if (!active) return
-      const t = ctx.currentTime
-      beep(t,        880,  0.15)
-      beep(t + 0.25, 880,  0.15)
-      beep(t + 0.52, 1320, 0.42)
+      try {
+        if (!active) return
+        const t = ctx.currentTime
+        beep(t,        880,  0.15)
+        beep(t + 0.25, 880,  0.15)
+        beep(t + 0.52, 1320, 0.42)
+      } catch {}
     }
+
+    // Resume context first (Android suspends AudioContext created without user gesture)
+    ctx.resume().catch(() => {})
 
     // Fire pattern every 2 seconds, 15 times = 30 seconds total
     for (let i = 0; i < 15; i++) {
@@ -96,9 +103,11 @@ function playAlarm(): () => void {
 }
 
 function showNotification(title: string, body: string) {
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(title, { body, icon: '/pwa-192x192.png', silent: false })
-  }
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/pwa-192x192.png', silent: false })
+    }
+  } catch {}
 }
 
 export function PomodoroTimer() {
