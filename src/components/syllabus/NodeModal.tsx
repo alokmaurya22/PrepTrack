@@ -169,14 +169,14 @@ export function NodeModal({ mode, parentNode, addType = 'topic', allNodes = [], 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      onClick={(e) => { if (e.target === e.currentTarget && !copySubtree.isPending) onClose() }}
     >
       <div className="relative w-full max-w-lg rounded-xl bg-background shadow-xl border border-border max-h-[90vh] flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
           <h2 className="text-base font-semibold text-foreground truncate pr-4">{modalTitle}</h2>
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0">
+          <button type="button" onClick={onClose} disabled={copySubtree.isPending} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
             <X className="h-4 w-4" />
           </button>
         </div>
