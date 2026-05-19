@@ -232,7 +232,10 @@ export function NodeModal({ mode, parentNode, addType = 'topic', allNodes = [], 
                 <p className="p-4 text-xs text-muted-foreground text-center">No results found.</p>
               )}
               {copySubtree.isPending && (
-                <p className="p-4 text-xs text-muted-foreground text-center animate-pulse">Copying with all sub-items…</p>
+                <div className="flex flex-col items-center justify-center gap-3 p-6">
+                  <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                  <p className="text-xs text-muted-foreground">Copying with all sub-items…</p>
+                </div>
               )}
               {!copySubtree.isPending && searchResults?.map((result) => (
                 <button
