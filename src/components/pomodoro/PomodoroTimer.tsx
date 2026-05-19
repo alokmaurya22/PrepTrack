@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2, Bell, VolumeX, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useStartSession, useEndSession } from '../../lib/queries/sessions'
@@ -116,7 +116,6 @@ export function PomodoroTimer() {
   const [alarmPlaying, setAlarmPlaying] = useState(false)
   const [hasStarted, setHasStarted]     = useState(false)
   const [showClose, setShowClose]       = useState(false)
-  const navigate = useNavigate()
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const { data: todayTasks } = useTasksForDate(today)
@@ -329,19 +328,26 @@ export function PomodoroTimer() {
       ? `You focused for ${durations.focus} minutes. Well done!`
       : `${durations[mode]} min break ended. Ready to go again?`
 
-    const handleStopAlarm = () => {
+    // Cleanup before Link navigation fires — no await, no state conflicts
+    const onStopAlarmClick = () => {
+      setShowClose(true)
       stopAlarm()
-      setShowClose(true)
-      navigate('/')
+      setHasStarted(false)
+      setTimerState('idle')
     }
 
-    const handleAdvance = async () => {
+    const onAdvanceClick = () => {
       setShowClose(true)
-      await endSessionAndReset()
-      navigate('/')
+      stopWorker()
+      stopAlarm()
+      if (sessionId) endSession.mutate({ sessionId })
+      setHasStarted(false)
+      setTimerState('idle')
+      setSessionId(null)
     }
 
-    const handleDismiss = () => {
+    // Fallback: X just closes overlay without navigating
+    const onDismiss = () => {
       stopAlarm()
       setHasStarted(false)
       setShowClose(false)
@@ -353,10 +359,10 @@ export function PomodoroTimer() {
         className="flex flex-col items-center justify-center bg-background"
         style={{ position: 'fixed', inset: 0, zIndex: 9999 }}
       >
-        {/* X dismiss — fallback if auto-redirect doesn't fire, visible only after a button is pressed */}
+        {/* X dismiss — appears after either button is pressed, fallback if Link navigation fails */}
         {showClose && (
           <button
-            onClick={handleDismiss}
+            onClick={onDismiss}
             className="absolute top-5 right-5 p-2 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
@@ -366,52 +372,45 @@ export function PomodoroTimer() {
         {/* Animated radial glow */}
         <div
           className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(ellipse at center, ${isFocus ? '#ef444430' : '#22c55e30'} 0%, transparent 70%)`,
-          }}
+          style={{ background: `radial-gradient(ellipse at center, ${isFocus ? '#ef444430' : '#22c55e30'} 0%, transparent 70%)` }}
         />
 
         {/* Pulsing logo */}
         <div className="relative mb-8">
-          <div className={cn(
-            'absolute inset-0 rounded-3xl animate-ping opacity-25',
-            isFocus ? 'bg-red-500' : 'bg-green-500'
-          )} />
+          <div className={cn('absolute inset-0 rounded-3xl animate-ping opacity-25', isFocus ? 'bg-red-500' : 'bg-green-500')} />
           <img src="/preptrack_logo.png" alt="PrepTrack" className="relative h-24 w-24 rounded-3xl shadow-2xl" />
         </div>
 
         {/* Current time */}
-        <p className="text-5xl font-bold tabular-nums text-foreground mb-3">
-          {format(new Date(), 'HH:mm')}
-        </p>
+        <p className="text-5xl font-bold tabular-nums text-foreground mb-3">{format(new Date(), 'HH:mm')}</p>
 
         {/* Done message */}
         <h2 className="text-2xl font-bold text-foreground mb-1">{doneLabel}</h2>
         <p className="text-sm text-muted-foreground mb-10 text-center px-8">{subLabel}</p>
 
-        {/* Stop alarm */}
-        <button
-          onClick={handleStopAlarm}
-          disabled={!alarmPlaying}
+        {/* Stop alarm — Link handles navigation, onClick handles cleanup */}
+        <Link
+          to="/"
+          onClick={onStopAlarmClick}
           className={cn(
             'w-64 py-4 rounded-2xl text-base font-bold mb-3 flex items-center justify-center gap-2 transition-all shadow-lg',
             alarmPlaying
               ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 animate-pulse'
-              : 'bg-muted text-muted-foreground cursor-default'
+              : 'bg-muted text-muted-foreground'
           )}
         >
           <VolumeX className="h-5 w-5" />
           {alarmPlaying ? 'Stop Alarm' : 'Alarm stopped'}
-        </button>
+        </Link>
 
-        {/* Advance */}
-        <button
-          onClick={handleAdvance}
-          disabled={endSession.isPending}
+        {/* Advance — Link handles navigation, onClick handles cleanup */}
+        <Link
+          to="/"
+          onClick={onAdvanceClick}
           className="w-64 py-4 rounded-2xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
         >
           {nextLabel} <ArrowRight className="h-5 w-5" />
-        </button>
+        </Link>
 
         {/* Session count */}
         <p className="text-xs text-muted-foreground mt-8">
