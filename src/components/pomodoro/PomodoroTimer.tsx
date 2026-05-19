@@ -328,12 +328,12 @@ export function PomodoroTimer() {
       ? `You focused for ${durations.focus} minutes. Well done!`
       : `${durations[mode]} min break ended. Ready to go again?`
 
-    // Cleanup before Link navigation fires — no await, no state conflicts
+    // Show X + stop audio — state reset NOT done here so the portal stays
+    // rendered with X visible until Link navigation unmounts the component.
+    // If navigation fails, X remains as fallback and onDismiss handles reset.
     const onStopAlarmClick = () => {
       setShowClose(true)
       stopAlarm()
-      setHasStarted(false)
-      setTimerState('idle')
     }
 
     const onAdvanceClick = () => {
@@ -341,9 +341,6 @@ export function PomodoroTimer() {
       stopWorker()
       stopAlarm()
       if (sessionId) endSession.mutate({ sessionId })
-      setHasStarted(false)
-      setTimerState('idle')
-      setSessionId(null)
     }
 
     // Fallback: X just closes overlay without navigating
