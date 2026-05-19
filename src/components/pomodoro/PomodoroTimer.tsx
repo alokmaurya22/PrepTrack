@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2, Bell } from 'lucide-react'
+import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2, Bell, VolumeX, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useStartSession, useEndSession } from '../../lib/queries/sessions'
 import { useTasksForDate } from '../../lib/queries/tasks'
@@ -28,7 +28,7 @@ function clamp(val: number, min: number, max: number) {
   return Math.min(max, Math.max(min, val))
 }
 
-// ── Web Worker code (inline blob — not throttled in background) ───────────────
+// ── Web Worker (inline blob — not throttled in background tabs) ───────────────
 const WORKER_SRC = `
 var _t = null
 self.onmessage = function(e) {
@@ -47,45 +47,47 @@ self.onmessage = function(e) {
 }
 `
 
-// ── Alarm using Web Audio API — 3 ascending beeps, repeated twice ─────────────
+// ── Alarm: beep-beep-BEEP pattern, repeats every 2s for 30 seconds ───────────
 function playAlarm(): () => void {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     if (!Ctx) return () => {}
     const ctx = new Ctx()
     let active = true
+    const ids: ReturnType<typeof setTimeout>[] = []
 
     const beep = (t: number, freq: number, dur: number) => {
-      const osc = ctx.createOscillator()
+      if (!active) return
+      const osc  = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.connect(gain)
       gain.connect(ctx.destination)
       osc.type = 'sine'
       osc.frequency.value = freq
       gain.gain.setValueAtTime(0, t)
-      gain.gain.linearRampToValueAtTime(0.6, t + 0.03)
-      gain.gain.setValueAtTime(0.6, t + dur - 0.05)
+      gain.gain.linearRampToValueAtTime(0.65, t + 0.03)
+      gain.gain.setValueAtTime(0.65, t + dur - 0.05)
       gain.gain.linearRampToValueAtTime(0, t + dur)
       osc.start(t)
-      osc.stop(t + dur + 0.05)
+      osc.stop(t + dur + 0.06)
     }
 
-    const play = () => {
+    const pattern = () => {
       if (!active) return
       const t = ctx.currentTime
       beep(t,        880,  0.15)
       beep(t + 0.25, 880,  0.15)
-      beep(t + 0.50, 1320, 0.40)
+      beep(t + 0.52, 1320, 0.42)
     }
 
-    play()
-    const r1 = setTimeout(() => play(), 1600)
-    const r2 = setTimeout(() => play(), 3200)
+    // Fire pattern every 2 seconds, 15 times = 30 seconds total
+    for (let i = 0; i < 15; i++) {
+      ids.push(setTimeout(() => pattern(), i * 2000))
+    }
 
     return () => {
       active = false
-      clearTimeout(r1)
-      clearTimeout(r2)
+      ids.forEach(clearTimeout)
       ctx.close().catch(() => {})
     }
   } catch {
@@ -101,7 +103,7 @@ function showNotification(title: string, body: string) {
 
 export function PomodoroTimer() {
   const startSession = useStartSession()
-  const endSession = useEndSession()
+  const endSession   = useEndSession()
 
   const [durations, setDurations] = useState<Durations>(loadDurations)
   const [showSettings, setShowSettings] = useState(false)
@@ -109,6 +111,7 @@ export function PomodoroTimer() {
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'denied'
   )
+  const [alarmPlaying, setAlarmPlaying] = useState(false)
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const { data: todayTasks } = useTasksForDate(today)
@@ -116,16 +119,13 @@ export function PomodoroTimer() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
 
   const [mode, setMode] = useState<'focus' | 'break' | 'long_break'>('focus')
-  const [timeLeft, setTimeLeft] = useState(loadDurations().focus * 60)
+  const [timeLeft, setTimeLeft]     = useState(loadDurations().focus * 60)
   const [timerState, setTimerState] = useState<TimerState>('idle')
-  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionId, setSessionId]   = useState<string | null>(null)
   const [sessionsCompleted, setSessionsCompleted] = useState(0)
 
-  // Wall-clock end time — for visibilitychange fallback
-  const endTimeRef  = useRef<number | null>(null)
-  // Web Worker — runs timer off main thread, not throttled
-  const workerRef   = useRef<Worker | null>(null)
-  // Stop function for current alarm
+  const endTimeRef   = useRef<number | null>(null)
+  const workerRef    = useRef<Worker | null>(null)
   const alarmStopRef = useRef<(() => void) | null>(null)
 
   const modeConfig = {
@@ -136,12 +136,12 @@ export function PomodoroTimer() {
 
   const totalDuration = modeConfig[mode].duration
   const progress = ((totalDuration - timeLeft) / totalDuration) * 100
-  const config = modeConfig[mode]
+  const config   = modeConfig[mode]
 
   // ── Create Web Worker on mount ─────────────────────────────────────────────
   useEffect(() => {
-    const blob = new Blob([WORKER_SRC], { type: 'application/javascript' })
-    const url  = URL.createObjectURL(blob)
+    const blob   = new Blob([WORKER_SRC], { type: 'application/javascript' })
+    const url    = URL.createObjectURL(blob)
     const worker = new Worker(url)
 
     worker.onmessage = (e: MessageEvent) => {
@@ -165,13 +165,13 @@ export function PomodoroTimer() {
   const stopAlarm = useCallback(() => {
     alarmStopRef.current?.()
     alarmStopRef.current = null
+    setAlarmPlaying(false)
   }, [])
 
-  // ── Recalculate when page becomes visible (handles phone lock / tab switch) ──
+  // ── visibilitychange: recalculate or replay alarm on return ───────────────
   useEffect(() => {
     const handler = () => {
       if (document.visibilityState !== 'visible') return
-
       if (timerState === 'running' && endTimeRef.current) {
         const remaining = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000))
         setTimeLeft(remaining)
@@ -179,10 +179,10 @@ export function PomodoroTimer() {
           stopWorker()
           setTimerState('finished')
         }
-      } else if (timerState === 'finished') {
-        // Timer finished while app was in background — replay alarm on return
-        stopAlarm()
+      } else if (timerState === 'finished' && !alarmStopRef.current) {
+        // Alarm may have been silenced while in background — restart it
         alarmStopRef.current = playAlarm()
+        setAlarmPlaying(true)
       }
     }
     document.addEventListener('visibilitychange', handler)
@@ -191,7 +191,7 @@ export function PomodoroTimer() {
       document.removeEventListener('visibilitychange', handler)
       window.removeEventListener('pageshow', handler)
     }
-  }, [timerState, stopWorker, stopAlarm])
+  }, [timerState, stopWorker])
 
   // ── Document title countdown ───────────────────────────────────────────────
   useEffect(() => {
@@ -209,10 +209,11 @@ export function PomodoroTimer() {
   useEffect(() => {
     if (timerState === 'finished') {
       alarmStopRef.current = playAlarm()
+      setAlarmPlaying(true)
       const isFocus = mode === 'focus'
       showNotification(
         `${config.label} complete!`,
-        isFocus ? 'Great work! Time for a break. 🎉' : "Break's over. Back to focus! 💪"
+        isFocus ? 'Great work! Time for a break.' : "Break's over. Back to focus!"
       )
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -262,16 +263,15 @@ export function PomodoroTimer() {
     if (sessionId) await endSession.mutateAsync({ sessionId })
 
     if (mode === 'focus') {
-      const newCount = sessionsCompleted + 1
+      const newCount  = sessionsCompleted + 1
       setSessionsCompleted(newCount)
-      const nextMode = newCount % 4 === 0 ? 'long_break' : 'break'
+      const nextMode  = newCount % 4 === 0 ? 'long_break' : 'break'
       setMode(nextMode)
       setTimeLeft(modeConfig[nextMode].duration)
     } else {
       setMode('focus')
       setTimeLeft(modeConfig.focus.duration)
     }
-
     setTimerState('idle')
     setSessionId(null)
   }
@@ -286,33 +286,100 @@ export function PomodoroTimer() {
     setSessionId(null)
   }
 
-  const openSettings = () => {
-    setDraft({ ...durations })
-    setShowSettings(true)
-  }
+  const openSettings = () => { setDraft({ ...durations }); setShowSettings(true) }
 
   const saveSettings = () => {
-    const newDurations: Durations = {
+    const nd: Durations = {
       focus:      clamp(draft.focus,      1, 120),
       break:      clamp(draft.break,      1,  60),
       long_break: clamp(draft.long_break, 1,  60),
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newDurations))
-    setDurations(newDurations)
-    setTimeLeft(newDurations[mode] * 60)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nd))
+    setDurations(nd)
+    setTimeLeft(nd[mode] * 60)
     setTimerState('idle')
     stopWorker()
     stopAlarm()
-    if (sessionId) {
-      endSession.mutate({ sessionId })
-      setSessionId(null)
-    }
+    if (sessionId) { endSession.mutate({ sessionId }); setSessionId(null) }
     setShowSettings(false)
   }
 
   const minutes = Math.floor(timeLeft / 60)
   const seconds = timeLeft % 60
 
+  // ── Alarm full-screen overlay ──────────────────────────────────────────────
+  if (timerState === 'finished') {
+    const isFocus    = mode === 'focus'
+    const nextLabel  = isFocus ? 'Take a Break' : 'Start Focus'
+    const doneLabel  = isFocus ? 'Focus session complete!' : 'Break time is over!'
+    const subLabel   = isFocus
+      ? `You focused for ${durations.focus} minutes. Well done!`
+      : `${durations[mode]} min break ended. Ready to go again?`
+
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+        {/* Animated radial glow */}
+        <div className={cn(
+          'absolute inset-0 opacity-10 pointer-events-none',
+          isFocus ? 'bg-red-500' : 'bg-green-500'
+        )} style={{ background: `radial-gradient(ellipse at center, ${isFocus ? '#ef4444' : '#22c55e'} 0%, transparent 70%)` }} />
+
+        {/* Pulsing logo */}
+        <div className="relative mb-8">
+          <div className={cn(
+            'absolute inset-0 rounded-3xl animate-ping opacity-30',
+            isFocus ? 'bg-red-500' : 'bg-green-500'
+          )} />
+          <img
+            src="/preptrack_logo.png"
+            alt="PrepTrack"
+            className="relative h-24 w-24 rounded-3xl shadow-2xl"
+          />
+        </div>
+
+        {/* Current time */}
+        <p className="text-5xl font-bold tabular-nums text-foreground mb-3">
+          {format(new Date(), 'HH:mm')}
+        </p>
+
+        {/* Done message */}
+        <h2 className="text-2xl font-bold text-foreground mb-1">{doneLabel}</h2>
+        <p className="text-sm text-muted-foreground mb-10 text-center px-8">{subLabel}</p>
+
+        {/* Stop alarm button — primary action */}
+        <button
+          onClick={stopAlarm}
+          disabled={!alarmPlaying}
+          className={cn(
+            'w-64 py-4 rounded-2xl text-base font-bold mb-3 flex items-center justify-center gap-2 transition-all shadow-lg',
+            alarmPlaying
+              ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 animate-pulse'
+              : 'bg-muted text-muted-foreground cursor-default'
+          )}
+        >
+          <VolumeX className="h-5 w-5" />
+          {alarmPlaying ? 'Stop Alarm' : 'Alarm stopped'}
+        </button>
+
+        {/* Advance to next session */}
+        <button
+          onClick={endSessionAndReset}
+          disabled={endSession.isPending}
+          className="w-64 py-4 rounded-2xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
+        >
+          {nextLabel}
+          <ArrowRight className="h-5 w-5" />
+        </button>
+
+        {/* Session count */}
+        <p className="text-xs text-muted-foreground mt-8">
+          {sessionsCompleted} focus session{sessionsCompleted === 1 ? '' : 's'} completed today
+        </p>
+      </div>
+    )
+  }
+
+  // ── Normal timer UI ────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col items-center space-y-6 relative">
       {/* Mode tabs + settings */}
@@ -330,17 +397,12 @@ export function PomodoroTimer() {
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              {key === 'focus' ? (
-                <Brain className="h-3 w-3" />
-              ) : (
-                <Coffee className="h-3 w-3" />
-              )}
+              {key === 'focus' ? <Brain className="h-3 w-3" /> : <Coffee className="h-3 w-3" />}
               {modeConfig[key].label}
             </button>
           ))}
         </div>
 
-        {/* Notification permission button */}
         {'Notification' in window && notifPerm === 'default' && (
           <button
             onClick={requestNotifPermission}
@@ -370,41 +432,25 @@ export function PomodoroTimer() {
               <X className="h-4 w-4" />
             </button>
           </div>
-
-          {(
-            [
-              { key: 'focus',      label: 'Focus (min)',      min: 1, max: 120 },
-              { key: 'break',      label: 'Break (min)',      min: 1, max:  60 },
-              { key: 'long_break', label: 'Long Break (min)', min: 1, max:  60 },
-            ] as const
-          ).map(({ key, label, min, max }) => (
+          {([
+            { key: 'focus',      label: 'Focus (min)',      min: 1, max: 120 },
+            { key: 'break',      label: 'Break (min)',      min: 1, max:  60 },
+            { key: 'long_break', label: 'Long Break (min)', min: 1, max:  60 },
+          ] as const).map(({ key, label, min, max }) => (
             <div key={key}>
               <label className="text-xs text-muted-foreground">{label}</label>
               <input
-                type="number"
-                min={min}
-                max={max}
-                value={draft[key]}
-                onChange={(e) =>
-                  setDraft((d) => ({ ...d, [key]: parseInt(e.target.value) || min }))
-                }
+                type="number" min={min} max={max} value={draft[key]}
+                onChange={(e) => setDraft((d) => ({ ...d, [key]: parseInt(e.target.value) || min }))}
                 className="w-full mt-0.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
           ))}
-
           <div className="flex gap-2 pt-1">
-            <button
-              onClick={saveSettings}
-              className="flex-1 flex items-center justify-center gap-1 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Check className="h-3.5 w-3.5" />
-              Save
+            <button onClick={saveSettings} className="flex-1 flex items-center justify-center gap-1 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
+              <Check className="h-3.5 w-3.5" /> Save
             </button>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="flex-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
-            >
+            <button onClick={() => setShowSettings(false)} className="flex-1 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors">
               Cancel
             </button>
           </div>
@@ -414,16 +460,10 @@ export function PomodoroTimer() {
       {/* Timer circle */}
       <div className="relative w-64 h-64">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="3" className="text-muted/20" />
           <circle
-            cx="50" cy="50" r="44"
-            fill="none" stroke="currentColor" strokeWidth="3"
-            className="text-muted/20"
-          />
-          <circle
-            cx="50" cy="50" r="44"
-            fill="none" stroke="currentColor" strokeWidth="3"
-            strokeLinecap="round"
-            className={config.color}
+            cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="3"
+            strokeLinecap="round" className={config.color}
             strokeDasharray={`${2 * Math.PI * 44}`}
             strokeDashoffset={`${2 * Math.PI * 44 * (1 - progress / 100)}`}
             style={{ transition: 'stroke-dashoffset 1s linear' }}
@@ -437,9 +477,6 @@ export function PomodoroTimer() {
           {timerState === 'paused' && (
             <span className="text-xs text-amber-500 mt-1 font-medium">Paused</span>
           )}
-          {timerState === 'finished' && (
-            <span className="text-xs text-green-500 mt-1 font-medium animate-pulse">Time's up!</span>
-          )}
         </div>
       </div>
 
@@ -451,54 +488,27 @@ export function PomodoroTimer() {
             disabled={startSession.isPending}
             className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            <Play className="h-4 w-4 fill-current" />
-            Start {config.label}
+            <Play className="h-4 w-4 fill-current" /> Start {config.label}
           </button>
         )}
-
         {timerState === 'running' && (
-          <button
-            onClick={pause}
-            className="flex items-center gap-2 rounded-full bg-amber-500 text-white px-6 py-3 text-sm font-medium hover:bg-amber-600 transition-colors"
-          >
-            <Pause className="h-4 w-4 fill-current" />
-            Pause
+          <button onClick={pause} className="flex items-center gap-2 rounded-full bg-amber-500 text-white px-6 py-3 text-sm font-medium hover:bg-amber-600 transition-colors">
+            <Pause className="h-4 w-4 fill-current" /> Pause
           </button>
         )}
-
         {timerState === 'paused' && (
           <>
-            <button
-              onClick={resume}
-              className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Play className="h-4 w-4 fill-current" />
-              Resume
+            <button onClick={resume} className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors">
+              <Play className="h-4 w-4 fill-current" /> Resume
             </button>
-            <button
-              onClick={endSessionAndReset}
-              disabled={endSession.isPending}
-              className="flex items-center gap-2 rounded-full border border-border px-4 py-3 text-sm text-muted-foreground hover:bg-muted transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Skip
+            <button onClick={endSessionAndReset} disabled={endSession.isPending} className="flex items-center gap-2 rounded-full border border-border px-4 py-3 text-sm text-muted-foreground hover:bg-muted transition-colors">
+              <RotateCcw className="h-4 w-4" /> Skip
             </button>
           </>
         )}
-
-        {timerState === 'finished' && (
-          <button
-            onClick={endSessionAndReset}
-            disabled={endSession.isPending}
-            className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors animate-pulse"
-          >
-            <RotateCcw className="h-4 w-4" />
-            {mode === 'focus' ? 'Take a Break' : 'Start Focus'}
-          </button>
-        )}
       </div>
 
-      {/* Task link — shown only in idle focus mode */}
+      {/* Task link */}
       {mode === 'focus' && timerState === 'idle' && pendingTasks.length > 0 && (
         <div className="w-full max-w-xs">
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
@@ -517,7 +527,7 @@ export function PomodoroTimer() {
         </div>
       )}
 
-      {/* Session counter + notification hint */}
+      {/* Session counter */}
       <div className="flex flex-col items-center gap-1">
         <div className="text-xs text-muted-foreground">
           {sessionsCompleted} focus session{sessionsCompleted === 1 ? '' : 's'} completed today
