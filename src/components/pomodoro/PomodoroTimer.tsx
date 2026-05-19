@@ -318,8 +318,8 @@ export function PomodoroTimer() {
   const minutes = Math.floor(timeLeft / 60)
   const seconds = timeLeft % 60
 
-  // ── Alarm full-screen overlay (portal → renders at document.body, bypasses
-  //    any parent overflow/transform that breaks fixed on iOS Safari) ──────────
+  // ── Alarm full-screen overlay (portal → renders inside #root so Android PWA
+  //    WebView paints it correctly; document.body portals are skipped in PWA) ──
   if (timerState === 'finished' && hasStarted) {
     const isFocus   = mode === 'focus'
     const nextLabel = isFocus ? 'Take a Break' : 'Start Focus'
@@ -414,7 +414,7 @@ export function PomodoroTimer() {
           {sessionsCompleted} focus session{sessionsCompleted === 1 ? '' : 's'} completed today
         </p>
       </div>,
-      document.body
+      document.getElementById('root') ?? document.body
     )
   }
 
