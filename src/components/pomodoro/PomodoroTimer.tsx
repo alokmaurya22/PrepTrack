@@ -28,11 +28,69 @@ function clamp(val: number, min: number, max: number) {
   return Math.min(max, Math.max(min, val))
 }
 
-function playFinishSound() {
+// ── Web Worker code (inline blob — not throttled in background) ───────────────
+const WORKER_SRC = `
+var _t = null
+self.onmessage = function(e) {
+  if (e.data.type === 'START') {
+    if (_t) clearInterval(_t)
+    var end = e.data.endTime
+    _t = setInterval(function() {
+      var rem = Math.max(0, Math.round((end - Date.now()) / 1000))
+      self.postMessage({ type: 'TICK', remaining: rem })
+      if (rem <= 0) { clearInterval(_t); _t = null; self.postMessage({ type: 'DONE' }) }
+    }, 500)
+  } else if (e.data.type === 'STOP') {
+    if (_t) clearInterval(_t)
+    _t = null
+  }
+}
+`
+
+// ── Alarm using Web Audio API — 3 ascending beeps, repeated twice ─────────────
+function playAlarm(): () => void {
   try {
-    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACAf39/f4B/f3+AgH9/f3+Af39/gIB/f3+Af3+Af39/gH9/f4CAf39/gH9/f39/f39/f39/f3+Af39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/fA==')
-    audio.play().catch(() => {})
-  } catch {}
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!Ctx) return () => {}
+    const ctx = new Ctx()
+    let active = true
+
+    const beep = (t: number, freq: number, dur: number) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.6, t + 0.03)
+      gain.gain.setValueAtTime(0.6, t + dur - 0.05)
+      gain.gain.linearRampToValueAtTime(0, t + dur)
+      osc.start(t)
+      osc.stop(t + dur + 0.05)
+    }
+
+    const play = () => {
+      if (!active) return
+      const t = ctx.currentTime
+      beep(t,        880,  0.15)
+      beep(t + 0.25, 880,  0.15)
+      beep(t + 0.50, 1320, 0.40)
+    }
+
+    play()
+    const r1 = setTimeout(() => play(), 1600)
+    const r2 = setTimeout(() => play(), 3200)
+
+    return () => {
+      active = false
+      clearTimeout(r1)
+      clearTimeout(r2)
+      ctx.close().catch(() => {})
+    }
+  } catch {
+    return () => {}
+  }
 }
 
 function showNotification(title: string, body: string) {
@@ -63,9 +121,12 @@ export function PomodoroTimer() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sessionsCompleted, setSessionsCompleted] = useState(0)
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  // Wall-clock end time — set when timer starts/resumes, cleared on pause/reset
-  const endTimeRef = useRef<number | null>(null)
+  // Wall-clock end time — for visibilitychange fallback
+  const endTimeRef  = useRef<number | null>(null)
+  // Web Worker — runs timer off main thread, not throttled
+  const workerRef   = useRef<Worker | null>(null)
+  // Stop function for current alarm
+  const alarmStopRef = useRef<(() => void) | null>(null)
 
   const modeConfig = {
     focus:      { label: 'Focus',      duration: durations.focus * 60,      color: 'text-red-500'   },
@@ -77,39 +138,51 @@ export function PomodoroTimer() {
   const progress = ((totalDuration - timeLeft) / totalDuration) * 100
   const config = modeConfig[mode]
 
-  const clearTimer = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
+  // ── Create Web Worker on mount ─────────────────────────────────────────────
+  useEffect(() => {
+    const blob = new Blob([WORKER_SRC], { type: 'application/javascript' })
+    const url  = URL.createObjectURL(blob)
+    const worker = new Worker(url)
+
+    worker.onmessage = (e: MessageEvent) => {
+      if (e.data.type === 'TICK') {
+        setTimeLeft(e.data.remaining)
+      } else if (e.data.type === 'DONE') {
+        setTimeLeft(0)
+        setTimerState('finished')
+      }
     }
+
+    workerRef.current = worker
+    return () => { worker.terminate(); URL.revokeObjectURL(url) }
   }, [])
 
-  // ── Tick using wall clock (accurate across tab switches) ──────────────────────
-  useEffect(() => {
-    if (timerState === 'running') {
-      intervalRef.current = setInterval(() => {
-        if (!endTimeRef.current) return
-        const remaining = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000))
-        setTimeLeft(remaining)
-        if (remaining <= 0) {
-          clearTimer()
-          setTimerState('finished')
-        }
-      }, 500)
-    }
-    return clearTimer
-  }, [timerState, clearTimer])
+  const stopWorker = useCallback(() => {
+    workerRef.current?.postMessage({ type: 'STOP' })
+    endTimeRef.current = null
+  }, [])
 
-  // ── Recalculate when page becomes visible (tab/app switch back) ──────────────
+  const stopAlarm = useCallback(() => {
+    alarmStopRef.current?.()
+    alarmStopRef.current = null
+  }, [])
+
+  // ── Recalculate when page becomes visible (handles phone lock / tab switch) ──
   useEffect(() => {
     const handler = () => {
-      if ((document.visibilityState === 'visible') && timerState === 'running' && endTimeRef.current) {
+      if (document.visibilityState !== 'visible') return
+
+      if (timerState === 'running' && endTimeRef.current) {
         const remaining = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000))
         setTimeLeft(remaining)
         if (remaining <= 0) {
-          clearTimer()
+          stopWorker()
           setTimerState('finished')
         }
+      } else if (timerState === 'finished') {
+        // Timer finished while app was in background — replay alarm on return
+        stopAlarm()
+        alarmStopRef.current = playAlarm()
       }
     }
     document.addEventListener('visibilitychange', handler)
@@ -118,9 +191,9 @@ export function PomodoroTimer() {
       document.removeEventListener('visibilitychange', handler)
       window.removeEventListener('pageshow', handler)
     }
-  }, [timerState, clearTimer])
+  }, [timerState, stopWorker, stopAlarm])
 
-  // ── Document title shows countdown while running ──────────────────────────────
+  // ── Document title countdown ───────────────────────────────────────────────
   useEffect(() => {
     if (timerState === 'running' || timerState === 'paused') {
       const m = Math.floor(timeLeft / 60)
@@ -132,20 +205,20 @@ export function PomodoroTimer() {
     return () => { document.title = 'PrepTrack' }
   }, [timeLeft, timerState, config.label])
 
-  // ── Notify when finished ──────────────────────────────────────────────────────
+  // ── Play alarm + notification when finished ────────────────────────────────
   useEffect(() => {
     if (timerState === 'finished') {
-      playFinishSound()
+      alarmStopRef.current = playAlarm()
       const isFocus = mode === 'focus'
       showNotification(
-        `${config.label} session complete!`,
+        `${config.label} complete!`,
         isFocus ? 'Great work! Time for a break. 🎉' : "Break's over. Back to focus! 💪"
       )
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timerState])
 
-  // ── Controls ──────────────────────────────────────────────────────────────────
+  // ── Controls ───────────────────────────────────────────────────────────────
 
   async function requestNotifPermission() {
     if ('Notification' in window) {
@@ -161,27 +234,31 @@ export function PomodoroTimer() {
         task_id: mode === 'focus' ? selectedTaskId || undefined : undefined,
       })
       setSessionId(session.id)
-      // Auto-request notification permission on first start
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission().then(setNotifPerm)
       }
     }
-    endTimeRef.current = Date.now() + timeLeft * 1000
+    const endTime = Date.now() + timeLeft * 1000
+    endTimeRef.current = endTime
+    workerRef.current?.postMessage({ type: 'START', endTime })
     setTimerState('running')
   }
 
   const pause = () => {
-    endTimeRef.current = null
+    stopWorker()
     setTimerState('paused')
   }
 
   const resume = () => {
-    endTimeRef.current = Date.now() + timeLeft * 1000
+    const endTime = Date.now() + timeLeft * 1000
+    endTimeRef.current = endTime
+    workerRef.current?.postMessage({ type: 'START', endTime })
     setTimerState('running')
   }
 
   const endSessionAndReset = async () => {
-    endTimeRef.current = null
+    stopWorker()
+    stopAlarm()
     if (sessionId) await endSession.mutateAsync({ sessionId })
 
     if (mode === 'focus') {
@@ -200,7 +277,8 @@ export function PomodoroTimer() {
   }
 
   const switchMode = (newMode: typeof mode) => {
-    endTimeRef.current = null
+    stopWorker()
+    stopAlarm()
     if (sessionId) endSession.mutate({ sessionId })
     setMode(newMode)
     setTimeLeft(modeConfig[newMode].duration)
@@ -223,7 +301,8 @@ export function PomodoroTimer() {
     setDurations(newDurations)
     setTimeLeft(newDurations[mode] * 60)
     setTimerState('idle')
-    endTimeRef.current = null
+    stopWorker()
+    stopAlarm()
     if (sessionId) {
       endSession.mutate({ sessionId })
       setSessionId(null)
@@ -358,6 +437,9 @@ export function PomodoroTimer() {
           {timerState === 'paused' && (
             <span className="text-xs text-amber-500 mt-1 font-medium">Paused</span>
           )}
+          {timerState === 'finished' && (
+            <span className="text-xs text-green-500 mt-1 font-medium animate-pulse">Time's up!</span>
+          )}
         </div>
       </div>
 
@@ -408,7 +490,7 @@ export function PomodoroTimer() {
           <button
             onClick={endSessionAndReset}
             disabled={endSession.isPending}
-            className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-6 py-3 text-sm font-medium hover:bg-primary/90 transition-colors animate-pulse"
           >
             <RotateCcw className="h-4 w-4" />
             {mode === 'focus' ? 'Take a Break' : 'Start Focus'}
