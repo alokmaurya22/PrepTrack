@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, BookOpen, CheckCircle2, RotateCcw, Clock, Search, Copy } from 'lucide-react'
+import { X, BookOpen, CheckCircle2, RotateCcw, Clock, Search, Copy, Loader2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
   useCreateSyllabusNode,
@@ -233,8 +233,8 @@ export function NodeModal({ mode, parentNode, addType = 'topic', allNodes = [], 
               )}
               {copySubtree.isPending && (
                 <div className="flex flex-col items-center justify-center gap-3 p-6">
-                  <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
-                  <p className="text-xs text-muted-foreground">Copying with all sub-items…</p>
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-xs text-muted-foreground animate-pulse">Copying with all sub-items…</p>
                 </div>
               )}
               {!copySubtree.isPending && searchResults?.map((result) => (
