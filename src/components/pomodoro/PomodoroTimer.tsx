@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { Play, Pause, RotateCcw, Coffee, Brain, Settings, X, Check, Link2, Bell, VolumeX, ArrowRight } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useStartSession, useEndSession } from '../../lib/queries/sessions'
@@ -112,6 +114,9 @@ export function PomodoroTimer() {
     typeof Notification !== 'undefined' ? Notification.permission : 'denied'
   )
   const [alarmPlaying, setAlarmPlaying] = useState(false)
+  const [hasStarted, setHasStarted]     = useState(false)
+  const [showClose, setShowClose]       = useState(false)
+  const navigate = useNavigate()
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const { data: todayTasks } = useTasksForDate(today)
@@ -239,6 +244,7 @@ export function PomodoroTimer() {
         Notification.requestPermission().then(setNotifPerm)
       }
     }
+    setHasStarted(true)
     const endTime = Date.now() + timeLeft * 1000
     endTimeRef.current = endTime
     workerRef.current?.postMessage({ type: 'START', endTime })
@@ -272,6 +278,8 @@ export function PomodoroTimer() {
       setMode('focus')
       setTimeLeft(modeConfig.focus.duration)
     }
+    setHasStarted(false)
+    setShowClose(false)
     setTimerState('idle')
     setSessionId(null)
   }
@@ -282,6 +290,8 @@ export function PomodoroTimer() {
     if (sessionId) endSession.mutate({ sessionId })
     setMode(newMode)
     setTimeLeft(modeConfig[newMode].duration)
+    setHasStarted(false)
+    setShowClose(false)
     setTimerState('idle')
     setSessionId(null)
   }
@@ -297,6 +307,8 @@ export function PomodoroTimer() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nd))
     setDurations(nd)
     setTimeLeft(nd[mode] * 60)
+    setHasStarted(false)
+    setShowClose(false)
     setTimerState('idle')
     stopWorker()
     stopAlarm()
@@ -307,34 +319,65 @@ export function PomodoroTimer() {
   const minutes = Math.floor(timeLeft / 60)
   const seconds = timeLeft % 60
 
-  // ── Alarm full-screen overlay ──────────────────────────────────────────────
-  if (timerState === 'finished') {
-    const isFocus    = mode === 'focus'
-    const nextLabel  = isFocus ? 'Take a Break' : 'Start Focus'
-    const doneLabel  = isFocus ? 'Focus session complete!' : 'Break time is over!'
-    const subLabel   = isFocus
+  // ── Alarm full-screen overlay (portal → renders at document.body, bypasses
+  //    any parent overflow/transform that breaks fixed on iOS Safari) ──────────
+  if (timerState === 'finished' && hasStarted) {
+    const isFocus   = mode === 'focus'
+    const nextLabel = isFocus ? 'Take a Break' : 'Start Focus'
+    const doneLabel = isFocus ? 'Focus session complete!' : 'Break time is over!'
+    const subLabel  = isFocus
       ? `You focused for ${durations.focus} minutes. Well done!`
       : `${durations[mode]} min break ended. Ready to go again?`
 
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
+    const handleStopAlarm = () => {
+      stopAlarm()
+      setShowClose(true)
+      navigate('/')
+    }
+
+    const handleAdvance = async () => {
+      setShowClose(true)
+      await endSessionAndReset()
+      navigate('/')
+    }
+
+    const handleDismiss = () => {
+      stopAlarm()
+      setHasStarted(false)
+      setShowClose(false)
+      setTimerState('idle')
+    }
+
+    return createPortal(
+      <div
+        className="flex flex-col items-center justify-center bg-background"
+        style={{ position: 'fixed', inset: 0, zIndex: 9999 }}
+      >
+        {/* X dismiss — fallback if auto-redirect doesn't fire, visible only after a button is pressed */}
+        {showClose && (
+          <button
+            onClick={handleDismiss}
+            className="absolute top-5 right-5 p-2 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
+
         {/* Animated radial glow */}
-        <div className={cn(
-          'absolute inset-0 opacity-10 pointer-events-none',
-          isFocus ? 'bg-red-500' : 'bg-green-500'
-        )} style={{ background: `radial-gradient(ellipse at center, ${isFocus ? '#ef4444' : '#22c55e'} 0%, transparent 70%)` }} />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(ellipse at center, ${isFocus ? '#ef444430' : '#22c55e30'} 0%, transparent 70%)`,
+          }}
+        />
 
         {/* Pulsing logo */}
         <div className="relative mb-8">
           <div className={cn(
-            'absolute inset-0 rounded-3xl animate-ping opacity-30',
+            'absolute inset-0 rounded-3xl animate-ping opacity-25',
             isFocus ? 'bg-red-500' : 'bg-green-500'
           )} />
-          <img
-            src="/preptrack_logo.png"
-            alt="PrepTrack"
-            className="relative h-24 w-24 rounded-3xl shadow-2xl"
-          />
+          <img src="/preptrack_logo.png" alt="PrepTrack" className="relative h-24 w-24 rounded-3xl shadow-2xl" />
         </div>
 
         {/* Current time */}
@@ -346,9 +389,9 @@ export function PomodoroTimer() {
         <h2 className="text-2xl font-bold text-foreground mb-1">{doneLabel}</h2>
         <p className="text-sm text-muted-foreground mb-10 text-center px-8">{subLabel}</p>
 
-        {/* Stop alarm button — primary action */}
+        {/* Stop alarm */}
         <button
-          onClick={stopAlarm}
+          onClick={handleStopAlarm}
           disabled={!alarmPlaying}
           className={cn(
             'w-64 py-4 rounded-2xl text-base font-bold mb-3 flex items-center justify-center gap-2 transition-all shadow-lg',
@@ -361,21 +404,21 @@ export function PomodoroTimer() {
           {alarmPlaying ? 'Stop Alarm' : 'Alarm stopped'}
         </button>
 
-        {/* Advance to next session */}
+        {/* Advance */}
         <button
-          onClick={endSessionAndReset}
+          onClick={handleAdvance}
           disabled={endSession.isPending}
           className="w-64 py-4 rounded-2xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2"
         >
-          {nextLabel}
-          <ArrowRight className="h-5 w-5" />
+          {nextLabel} <ArrowRight className="h-5 w-5" />
         </button>
 
         {/* Session count */}
         <p className="text-xs text-muted-foreground mt-8">
           {sessionsCompleted} focus session{sessionsCompleted === 1 ? '' : 's'} completed today
         </p>
-      </div>
+      </div>,
+      document.body
     )
   }
 
